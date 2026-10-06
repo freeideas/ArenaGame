@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Endless Arena: play</title>
+<link rel="stylesheet" href="../shared/base.css">
+<link rel="stylesheet" href="play.css">
+</head>
+<body>
+<canvas id="view" aria-label="The arena, seen through your eyes"></canvas>
+
+<div id="hud">
+  <div id="crosshair" aria-hidden="true"></div>
+  <div id="top"><span id="clock"></span><span id="score"></span></div>
+  <ol id="feed" aria-live="polite"></ol>
+  <p id="net" hidden></p>
+  <p id="toast" hidden></p>
+  <p id="lockhint" hidden>Click to capture the mouse. Escape lets it go.</p>
+  <div id="vitals" hidden>
+    <span class="vital"><span class="label">Health</span> <b id="hp">100</b></span>
+    <span class="vital armor"><span class="label">Armor</span> <b id="armor">0</b></span>
+  </div>
+  <div id="arms" hidden>
+    <div id="weapon"><span id="wname">Blaster</span> <b id="ammo"></b></div>
+    <ol id="slots">
+      <li data-w="1"><kbd>1</kbd> Blaster</li>
+      <li data-w="2"><kbd>2</kbd> Launcher</li>
+      <li data-w="3"><kbd>3</kbd> Beam</li>
+    </ol>
+  </div>
+</div>
+
+<div id="board" hidden>
+  <p id="winner"></p>
+  <table>
+    <thead><tr><th>#</th><th>Name</th><th>Frags</th><th>Deaths</th><th>Ping</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <p id="boardnote"></p>
+</div>
+
+<div id="death" hidden>
+  <p id="deathtext">You died</p>
+  <p id="respawn" hidden>Click to come back</p>
+</div>
+
+<div id="cover">
+  <div class="card">
+    <h1>Endless Arena</h1>
+    <form id="playform">
+      <label for="name">Your name</label>
+      <input id="name" maxlength="24" autocomplete="nickname" spellcheck="false">
+      <p id="namenote" class="note"></p>
+      <button id="play" type="submit">Play</button>
+    </form>
+    <p class="note">W A S D or arrows move, Space jumps, the mouse looks, left button fires, 1 2 3 or the wheel change weapon, Tab shows the scores.</p>
+    <p class="note"><a href="../welcome/">Back to the front page</a></p>
+  </div>
+</div>
+<script type="module" src="play.js"></script>
+</body>
+</html>

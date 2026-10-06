@@ -1,0 +1,69 @@
+/* The play page: the 3D view fills the window; the HUD is plain DOM laid over it. */
+[hidden] { display: none !important; }
+html, body { height: 100%; overflow: hidden; }
+body { user-select: none; -webkit-user-select: none; }
+#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+#hud { position: fixed; inset: 0; pointer-events: none; font-variant-numeric: tabular-nums; text-shadow: 0 1px 3px #000c; }
+
+/* The crosshair: a small ring and dot; it flashes on a hit. */
+#crosshair { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px;
+  border: 2px solid #ffffffb0; border-radius: 50%; transition: border-color .15s, transform .15s; }
+#crosshair::after { content: ""; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; background: #fff; border-radius: 50%; }
+#crosshair.hit { border-color: var(--accent); transform: scale(1.5); transition: none; }
+
+#top { position: absolute; top: .6rem; left: 0; right: 0; display: flex; justify-content: center; gap: 1.2rem; font-weight: 700; }
+#clock { padding: .1rem .7rem; border-radius: 8px; background: #0b0e24aa; }
+#score { color: var(--dim); }
+
+#feed { position: absolute; top: .6rem; left: .8rem; margin: 0; padding: 0; list-style: none; font-size: .95rem; max-width: 40vw; }
+#feed li { padding: .1rem .5rem; margin-bottom: .2rem; border-radius: 6px; background: #0b0e2488; transition: opacity 1s; }
+#feed li.old { opacity: 0; }
+#feed .me { color: var(--accent); }
+#feed .how { color: var(--dim); margin: 0 .3rem; }
+
+#net { position: absolute; top: 2.8rem; left: 50%; transform: translateX(-50%); margin: 0; padding: .3rem .9rem; border-radius: 8px; background: #5a1020dd; }
+#toast { position: absolute; top: 5rem; left: 50%; transform: translateX(-50%); margin: 0; padding: .3rem .9rem; border-radius: 8px; background: #0b0e24dd; }
+#lockhint { position: absolute; top: 58%; left: 50%; transform: translateX(-50%); margin: 0; padding: .3rem .9rem; border-radius: 8px; background: #0b0e24cc; color: var(--dim); }
+
+#vitals { position: absolute; left: 1rem; bottom: .8rem; display: flex; gap: 1.2rem; font-size: 1.1rem; }
+.vital b { font-size: 2rem; }
+.vital .label { color: var(--dim); }
+.vital.low b { color: #ff6b6b; }
+.armor b { color: #8fc3ff; }
+
+#arms { position: absolute; right: 1rem; bottom: .8rem; text-align: right; }
+#weapon { font-size: 1.1rem; font-weight: 700; }
+#weapon b { font-size: 2rem; margin-left: .4rem; }
+#slots { display: flex; gap: .4rem; justify-content: flex-end; margin: .2rem 0 0; padding: 0; list-style: none; font-size: .85rem; }
+#slots li { padding: .05rem .5rem; border: 1px solid var(--line); border-radius: 6px; color: #ffffff40; }
+#slots li.have { color: var(--fg); }
+#slots li.now { border-color: var(--accent); color: var(--accent); }
+kbd { font: inherit; color: var(--dim); }
+
+/* Scoreboard (Tab, and between rounds). */
+#board { position: fixed; top: 12vh; left: 50%; transform: translateX(-50%); width: min(34rem, 94vw); padding: .8rem 1rem;
+  border: 1px solid var(--line); border-radius: 12px; background: #0b0e24e6; pointer-events: none; }
+#board td:nth-child(n+3), #board th:nth-child(n+3) { text-align: right; }
+#board tr.me td { color: var(--accent); }
+#winner { margin: 0 0 .4rem; font-size: 1.4rem; font-weight: 800; text-align: center; }
+#winner:empty, #boardnote:empty { display: none; }
+#boardnote { margin: .4rem 0 0; color: var(--dim); text-align: center; }
+.bot { color: var(--dim); font-size: .8rem; border: 1px solid var(--line); border-radius: 6px; padding: 0 .3rem; margin-left: .4rem; }
+
+/* You died. */
+#death { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; background: #3a000855; pointer-events: none; }
+#deathtext { margin: 0; font-size: clamp(1.6rem, 5vw, 2.6rem); font-weight: 800; text-shadow: 0 2px 8px #000; }
+#respawn { margin: .3rem 0 0; color: var(--accent); font-weight: 700; }
+
+/* The Play card at the start. */
+#cover { position: fixed; inset: 0; display: grid; place-items: center; padding: 1rem; background: #04050cc8; }
+.card { width: min(26rem, 100%); padding: 1.2rem 1.4rem; text-align: center; border: 1px solid var(--line); border-radius: 14px; background: #0b0e24ee; }
+.card h1 { margin: 0 0 .8rem; font-size: 2rem; }
+.card label { display: block; color: var(--dim); }
+.card input { width: 100%; margin: .2rem 0; padding: .45rem .7rem; font: inherit; color: var(--fg); background: #04050c; border: 1px solid var(--line); border-radius: 8px; text-align: center; }
+.card input:disabled { color: var(--dim); }
+.card .note { color: var(--dim); font-size: .9rem; margin: .4rem 0; }
+#namenote:empty { display: none; }
+#play { margin-top: .4rem; padding: .6rem 3rem; font-size: 1.4rem; border-radius: 14px; box-shadow: 0 0 28px #ffb45466; }
+#clock:empty { display: none; }
