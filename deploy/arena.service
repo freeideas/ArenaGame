@@ -1,0 +1,25 @@
+# systemd unit for Endless Arena at https://arena.endlessmind.com/ on contabix (ordinarydata).
+# Install: sudo cp deploy/arena.service /etc/systemd/system/ && sudo systemctl enable --now arena
+# Caddy relays arena.endlessmind.com to 127.0.0.1:8780 (deploy/Caddyfile.snippet).
+
+[Unit]
+Description=Endless Arena, a free-for-all shooter on floating platforms
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ace
+Group=ace
+WorkingDirectory=/home/ace/Desktop/prjx/ArenaGame
+Environment=PATH=/home/ace/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PORT=8780
+Environment=BASE=https://arena.endlessmind.com/
+Environment=DATA_ROOT=/home/ace/Desktop/prjx/ArenaGame/data
+MemoryMax=512M
+ExecStart=/home/ace/.local/bin/uv run arena-server
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

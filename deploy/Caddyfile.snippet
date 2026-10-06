@@ -1,0 +1,11 @@
+	# --- Endless Arena (arena.endlessmind.com) ---------------------------------
+	# systemd unit `arena` -> 127.0.0.1:8780 (~/Desktop/prjx/ArenaGame,
+	# specs/deployment.md). The app serves its pages, the realm and its WebSocket
+	# (/ws) itself; Caddy only forwards. Also add arena.endlessmind.com to the
+	# @allowed_domains list that decides which names get certificates.
+	@arena host arena.endlessmind.com
+	handle @arena {
+		reverse_proxy 127.0.0.1:8780 {
+			header_up X-Real-IP {remote_host}
+		}
+	}
