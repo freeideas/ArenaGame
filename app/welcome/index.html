@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Endless Arena</title>
+<meta name="description" content="A fast free-for-all shooter in your browser, on floating platforms in space. Guests play right away.">
+<link rel="stylesheet" href="../shared/base.css">
+<link rel="stylesheet" href="welcome.css">
+</head>
+<body>
+<main>
+  <h1>Endless Arena</h1>
+  <p class="lead">A fast free-for-all shooter in the browser, on floating platforms hanging in space. Fall off and you die; first to 20 frags wins the round.</p>
+  <p>Play alone and two bots fight you; with more people there are fewer bots. Guests play right away.</p>
+  <p><a class="button play" href="../play/">Play</a></p>
+  <p class="note">A computer with a mouse is needed for now.</p>
+
+  <h2>In the arena now</h2>
+  <section id="live" class="box" aria-live="polite">
+    <p id="count">Looking in on the arena...</p>
+    <p id="timer"></p>
+    <table id="scores" hidden>
+      <thead><tr><th>Name</th><th>Frags</th><th>Deaths</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <h2>Controls</h2>
+  <table class="controls">
+    <tbody>
+      <tr><th>Move</th><td>W A S D or arrow keys</td></tr>
+      <tr><th>Jump</th><td>Space</td></tr>
+      <tr><th>Look</th><td>Mouse (click the page to capture it)</td></tr>
+      <tr><th>Fire</th><td>Left mouse button</td></tr>
+      <tr><th>Change weapon</th><td>1, 2, 3 or the mouse wheel</td></tr>
+      <tr><th>Scores</th><td>Tab</td></tr>
+    </tbody>
+  </table>
+
+  <!-- The Endless Mind sign-in box is mounted here later. Leave it empty. -->
+  <div id="signin"></div>
+
+  <footer>
+    <p>Original work: our own map and names in a well-worn genre.</p>
+    <p>Part of the <a href="https://endlessmind.com/">Endless Mind</a> network.</p>
+  </footer>
+</main>
+<script type="module" src="welcome.js"></script>
+</body>
+</html>

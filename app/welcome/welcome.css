@@ -1,0 +1,16 @@
+main { max-width: 40rem; margin: 0 auto; padding: 2rem 1rem 3rem; }
+h1 { margin: 0 0 .3rem; font-size: clamp(2.2rem, 10vw, 3.6rem); letter-spacing: .02em; line-height: 1.1; }
+h2 { margin: 2rem 0 .5rem; font-size: 1.25rem; }
+.lead { color: #c5d0f0; font-size: 1.15rem; }
+.play { padding: .7rem 3rem; font-size: 1.6rem; border-radius: 14px; box-shadow: 0 0 28px #ffb45466; }
+.note { color: var(--dim); margin-top: .2rem; }
+.box { border: 1px solid var(--line); border-radius: 12px; padding: .4rem 1rem; background: #0b0e24cc; }
+#timer { color: var(--dim); margin-top: -.5rem; }
+#scores td:not(:first-child), #scores th:not(:first-child) { text-align: right; }
+#scores td:first-child { overflow-wrap: anywhere; }
+.bot { color: var(--dim); font-size: .8rem; border: 1px solid var(--line); border-radius: 6px; padding: 0 .3rem; margin-left: .4rem; }
+.controls th { width: 40%; }
+#signin:empty { display: none; }
+#signin { margin-top: 1.5rem; }
+footer { margin-top: 2.5rem; color: var(--dim); font-size: .9rem; }
+footer p { margin: .2rem 0; }
