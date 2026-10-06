@@ -52,6 +52,7 @@ Everyone spawns with the Blaster. The others are picked up. Switching takes 0.3 
 
 - Instant-hit weapons: the browser does the hit test against the players it sees (what you see is what you hit) and reports who it hit; the server believes it only if the claimed target is alive, within range, and within 6 degrees of the shooter's reported aim from the shooter's reported position, given the positions the server knows. Otherwise the shot is a miss.
 - Shells are simulated by the server and drawn by browsers from the state messages. Hits are tested each tick against map boxes and player cylinders, including the shooter's own cylinder after the first 0.1 s of flight.
+- Splash reaches a player only if a straight line from the explosion to their feet, middle or head is clear of map boxes. Distance for falloff is measured to the nearest point of the body.
 - Knockback: a direct Launcher hit or splash pushes the victim away from the explosion at up to 14 m/s (scaled by splash falloff), with an extra 3 m/s upward so pushes lift. The shooter takes half damage from their own splash but full knockback. Beam hits push 4 m/s along the shot. Blaster hits do not push.
 - Damage to a player with armor: armor takes two thirds and the player one third, until the armor is gone.
 
@@ -74,14 +75,14 @@ A pickup is taken by walking into it (within 1 m of its point, feet within 1.5 m
 
 ## Spawning, dying and the round
 
-- A dead player respawns 2 s after death, or at once on click after that, at the spawn point farthest from any living enemy (with a little randomness among the top three).
+- A dead player respawns by clicking, once 2 s have passed since death, at the spawn point farthest from any living enemy (with a little randomness among the top three). Bots respawn by the bot rule below.
 - Falling into the void: if someone damaged you in the last 4 s, it is their frag; otherwise it costs you one point. Your own shell killing you costs one point.
 - Round: free-for-all, ends at 20 frags or 8 minutes, whichever first. Then 8 s of scoreboard (nobody moves or shoots, the page shows the standings), then everything resets: scores, pickups, positions.
 - Scores show frags, deaths and ping, bots marked.
 
 ## Bots
 
-A bot is a player the server drives. Bots exist so a lone player has a fight: with 1 real player there are 2 bots, with 2 real players 1 bot, with 3 or more none. Precisely: wanted bots = max(0, 3 - real players). Every tick, if living bots < wanted, one bot is added or a dead one respawned. A living bot is never removed because people joined: it simply does not respawn once living bots >= wanted. A bot who stays dead is dropped from the lists at the next round.
+A bot is a player the server drives. Bots exist so a lone player has a fight: with 1 real player there are 2 bots, with 2 real players 1 bot, with 3 or more none. Precisely: wanted bots = max(0, 3 - real players). Every tick, if living bots < wanted, one bot is added or a dead one respawned. A living bot is never removed because people joined: it simply does not respawn once living bots >= wanted. A bot who stays dead is dropped from the lists at the next round. When the last person leaves, the bots leave too and the arena sleeps (no round runs) until someone presses Play, which starts a fresh round.
 
 Bots follow the map's waypoint graph (`"waypoints"`: nodes and edges, where an edge may be a walk, a jump across a gap, or a pad). Each tick a bot:
 
@@ -93,7 +94,7 @@ Bots have invented names from a fixed list (`server/arena_server/bots.py`). Diff
 
 ## Signing in and records
 
-Guests play at once with a random name. Signing in with Endless Mind (QR code, `endlessmind/signin.js` from the realm library in `../EveryGame`) gives the player their own name and lets them claim records. Records offered: winning a round with at least 2 real players in it; reaching 100, 500 and every 500 frags after that in total here. The realm keeps its secret phrase and data in `data/` (`realm-secret.txt`, `realm-data.json`), and the server keeps each player's lifetime frags in `data/players.json`.
+Guests play at once with a random name. Signing in with Endless Mind (QR code, `endlessmind/signin.js` from the realm library in `../EveryGame`) gives the player their own name and lets them claim records. Records offered: winning a round with at least 2 real players in it; reaching 100, 500 and every 500 frags after that in total here. The realm keeps its secret phrase and data in `data/` (`realm-secret.txt`, `realm-data.json`), and the server keeps each player's lifetime frags in `data/players.json` and the names guests chose in `data/guests.json`.
 
 ## Not in the first version
 

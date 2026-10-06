@@ -15,7 +15,7 @@ Check the checkout is clean, then `git pull --ff-only`. Page files (`app/`) are 
 
 ## Data
 
-`data/` (gitignored) holds the realm's secret phrase (`realm-secret.txt`: the realm's identity, keep a copy), its data (`realm-data.json`) and `players.json` (lifetime frags by player ID). Losing `players.json` loses only the frag totals.
+`data/` (gitignored) holds the realm's secret phrase (`realm-secret.txt`: the realm's identity, keep a copy), its data (`realm-data.json`) `players.json` (lifetime frags by player ID) and `guests.json` (names guests chose, by guest ID). Losing `players.json` loses only the frag totals.
 
 ## Limits
 
