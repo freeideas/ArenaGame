@@ -19,4 +19,6 @@ Check the checkout is clean, then `git pull --ff-only`. Page files (`app/`) are 
 
 ## Limits
 
+With nobody connected the arena sleeps: the bots are gone, no round runs, and the clock wakes only twice a second.
+
 One process holds the arena in memory and sends each player 20 updates a second. Tens of players at once is comfortable; the service is capped at 512 MB.

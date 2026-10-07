@@ -97,15 +97,19 @@ def offer_record(player: str, text: str, data: dict) -> None:
 game = Game(FileStore(DATA_ROOT), on_record=offer_record)
 
 
+IDLE_PERIOD = 0.5  # with nobody connected there is nothing to simulate or send: wake rarely
+
+
 async def every(period: float, step) -> None:
-    """Call step(now, dt) every `period` seconds, on a fixed schedule so it does not drift."""
+    """Call step(now, dt) every `period` seconds, on a fixed schedule so it does not drift. With
+    nobody connected the loop wakes only every IDLE_PERIOD, so an empty arena costs almost nothing."""
     last = due = time.monotonic()
     while True:
-        due += period
+        due += IDLE_PERIOD if not game.players else period
         await asyncio.sleep(max(0.0, due - time.monotonic()))
         now = time.monotonic()
-        if now - due > 1.0:
-            due = now  # fell far behind (the machine slept): start the schedule again
+        if now - due > 1.0 or not game.players:
+            due = now  # fell far behind (the machine slept) or idle: start the schedule again
         try:
             step(now, min(now - last, 0.25))
         except Exception:
