@@ -48,7 +48,7 @@ An instant hit counts if the claimed target is alive and in the arena, within th
 
 ## Checking moves
 
-The server accepts an `at` only if, from the last accepted position and velocity, the move is one the movement rules allow: the horizontal distance is within what the run speed allows (an allowance that builds up at 1.25 times the run speed and saves at most 3 m, so a delayed message can catch up; any pad launch or push the server knows about in the last 2 s raises the cap to that launch's speed plus the run speed), and the position does not lie inside a map box. A failed check sends `snap` to the last accepted position. The server does not simulate gravity for people; it trusts `y` within the same allowance using the vertical speed limit of the fastest pad plus 20 m/s. People who fall below `kill_y` die by `void` whatever they report.
+The server accepts an `at` only if, from the last accepted position and velocity, the move is one the movement rules allow: the horizontal distance is within what the run speed allows (an allowance that builds up at 1.25 times the run speed and saves at most 9 m, so a delayed message or a one-second browser stall can catch up; any pad launch or push the server knows about in the last 2 s raises the cap to that launch's speed plus the run speed), and the position does not lie inside a map box. A failed check sends `snap` to the last accepted position. The server does not simulate gravity for people; it trusts `y` within the same allowance using the vertical speed limit of the fastest pad plus 20 m/s. People who fall below `kill_y` die by `void` whatever they report.
 
 Bots are moved by the server with the same rules in Python (`motion.py`), so they can never do what a person cannot.
 

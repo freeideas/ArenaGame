@@ -76,7 +76,7 @@ MILESTONES = (100, 500)  # lifetime frags; after 500, every 500
 
 # Checking moves (specs/protocol.md)
 MOVE_SLACK = 1.25        # the allowance builds at this times the run speed
-MOVE_SAVE = 3.0          # metres of allowance that can be saved up
+MOVE_SAVE = 9.0          # metres of allowance that can be saved up: a one-second browser stall while running
 FAST_SECONDS = 2.0       # a pad launch or push raises the speed cap for this long
 VERTICAL_EXTRA = 20.0    # vertical speed cap: the fastest pad's upward speed plus this
 
