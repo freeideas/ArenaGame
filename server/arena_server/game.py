@@ -67,7 +67,9 @@ VOID_CREDIT = 4.0        # seconds after being hurt that a fall still credits th
 FRAG_LIMIT = 20
 ROUND_SECONDS = 8 * 60
 OVER_SECONDS = 8
-WANTED_BOTS = 3          # bots wanted = max(0, WANTED_BOTS - people)
+WANTED_BOTS = 3          # bots wanted = max(0, WANTED_BOTS - people fighting)
+FIGHTING_GRACE = 15.0    # a dead person still counts as fighting this long, so dying does not add a bot
+BOT_HEALTH = 1           # bots die to any hit, and health and armor pickups do nothing for them
 ARENA_MAX = 16
 NAME_MAX = 24
 SAVE_EVERY = 5.0         # seconds between writes of the lasting store
@@ -342,7 +344,7 @@ class Game:
         player.x, player.y, player.z = (float(v) for v in s["at"])
         player.yaw, player.pitch = float(s.get("yaw", 0.0)), 0.0
         player.dead = False
-        player.hp, player.armor, player.decay = START_HEALTH, 0, 0.0
+        player.hp, player.armor, player.decay = (BOT_HEALTH if player.bot else START_HEALTH), 0, 0.0
         player.weapons, player.ammo, player.w = {BLASTER}, {LAUNCHER: 0, BEAM: 0}, BLASTER
         player.ready = now
         player.hurt_by, player.hurt_at = None, -1e9
@@ -665,6 +667,8 @@ class Game:
     def give(p: Player, kind: str) -> bool:
         """Give player p what item `kind` gives; False (nothing taken) if it would give nothing."""
         spec = ITEMS[kind]
+        if p.bot and ("health" in spec or "armor" in spec):
+            return False
         if "health" in spec:
             if p.hp >= spec["upto"]:
                 return False
@@ -708,8 +712,13 @@ class Game:
 
     # --- bots ------------------------------------------------------------------------------------
 
+    def fighting(self) -> list[Player]:
+        """People who are alive, or died less than FIGHTING_GRACE seconds ago. Someone who stays dead
+        and watches does not count, so the bots keep the arena busy for whoever is still playing."""
+        return [p for p in self.people() if not p.dead or self.now - p.died_at < FIGHTING_GRACE]
+
     def wanted_bots(self) -> int:
-        return max(0, WANTED_BOTS - len(self.people()))
+        return max(0, WANTED_BOTS - len(self.fighting()))
 
     def keep_bots(self, now: float) -> None:
         """If fewer bots are alive than wanted, respawn a dead one (once its 2 s are up) or add one."""

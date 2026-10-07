@@ -302,3 +302,21 @@ def test_summary_shape():
     s = game.summary()
     assert s["playing"] == 2 and s["bots"] == 0 and s["round"]["phase"] == "play"
     assert s["round"]["scores"][0] == {"id": a.id, "name": "A", "bot": False, "frags": 3, "deaths": 0}
+
+
+def test_dead_watchers_do_not_count_and_bots_die_to_one_hit():
+    game = Game(rng=random.Random(4))
+    a = Person(game, "a").p
+    game.enter(a, 0.0)
+    t = run(game, 0.0, 0.5)
+    assert len(game.bots()) == 2
+    b = Person(game, "b").p
+    game.enter(b, t)
+    game.kill(b, a, "blaster", t)  # b dies and never clicks to come back
+    bot = game.bots()[0]
+    assert bot.hp == 1 and not game.give(bot, "health") and not game.give(bot, "armor")
+    game.kill(bot, a, "blaster", t)
+    t = run(game, t, 3)
+    assert bot.dead, "within 15 s of dying, b still counts, so one bot is enough"
+    t = run(game, t, 15)
+    assert len([x for x in game.bots() if not x.dead]) == 2, "a person who stays dead and watches does not count"

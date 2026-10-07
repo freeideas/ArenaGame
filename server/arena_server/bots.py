@@ -238,10 +238,8 @@ def armed(bot) -> bool:
 
 def useful(bot, kind: str) -> bool:
     spec = rules.ITEMS[kind]
-    if "health" in spec:
-        return bot.hp < 60
-    if "armor" in spec:
-        return bot.armor < 150
+    if "health" in spec or "armor" in spec:
+        return False  # bots have one hit point and cannot be healed or armored (game.BOT_HEALTH)
     if "weapon" in spec:
         w = spec["weapon"]
         return w not in bot.weapons or bot.ammo[w] < 5

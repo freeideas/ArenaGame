@@ -82,7 +82,7 @@ A pickup is taken by walking into it (within 1 m of its point, feet within 1.5 m
 
 ## Bots
 
-A bot is a player the server drives. Bots exist so a lone player has a fight: with 1 real player there are 2 bots, with 2 real players 1 bot, with 3 or more none. Precisely: wanted bots = max(0, 3 - real players). Every tick, if living bots < wanted, one bot is added or a dead one respawned. A living bot is never removed because people joined: it simply does not respawn once living bots >= wanted. A bot who stays dead is dropped from the lists at the next round. When the last person leaves, the bots leave too and the arena sleeps (no round runs) until someone presses Play, which starts a fresh round.
+A bot is a player the server drives. Bots exist so a lone player has a fight: with 1 person fighting there are 2 bots, with 2 people 1 bot, with 3 or more none. Precisely: wanted bots = max(0, 3 - people fighting), where a person counts as fighting while alive and for 15 s after dying; someone who stays dead and watches does not count, so five dead watchers and one live player still get 2 bots. Every tick, if living bots < wanted, one bot is added or a dead one respawned. A living bot is never removed because people joined: it simply does not respawn once living bots >= wanted. A bot who stays dead is dropped from the lists at the next round. When the last person leaves, the bots leave too and the arena sleeps (no round runs) until someone presses Play, which starts a fresh round.
 
 Bots follow the map's waypoint graph (`"waypoints"`: nodes and edges, where an edge may be a walk, a jump across a gap, or a pad). Each tick a bot:
 
@@ -90,7 +90,7 @@ Bots follow the map's waypoint graph (`"waypoints"`: nodes and edges, where an e
 2. Walks the graph toward the goal with the same movement rules as a person (it moves by the same `motion` code, in Python).
 3. Shoots at a visible enemy with the best weapon it has: reaction delay 0.25 s, aim error up to 4 degrees that shrinks the longer the target stays visible, and with the Launcher it aims at the feet of a grounded target.
 
-Bots have invented names from a fixed list (`server/arena_server/bots.py`). Difficulty is one setting for now; tuned so a new person loses and a practised one wins.
+Bots have invented names from a fixed list (`server/arena_server/bots.py`). Bots are fragile: they spawn with 1 health and no armor, so any hit kills them, and health and armor pickups do nothing for them (they leave those alone). Their aim and movement are tuned so a new person can win by landing one shot before the bot does.
 
 ## Signing in and records
 
