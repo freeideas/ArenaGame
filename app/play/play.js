@@ -379,9 +379,18 @@ hud.onPlay((name) => {
     me.name = name;
     send({ t: "name", name });
   }
+  fullscreen(true);
   canvas.requestPointerLock?.()?.catch?.(() => {});
   join();
 });
+
+/** Ask the browser for the whole screen (allowed only from a click or key press); F toggles it. */
+function fullscreen(on) {
+  try {
+    if (on && !document.fullscreenElement) document.documentElement.requestFullscreen?.({ navigationUI: "hide" })?.catch?.(() => {});
+    else if (!on && document.fullscreenElement) document.exitFullscreen?.()?.catch?.(() => {});
+  } catch { /* not allowed here; the page works the same without it */ }
+}
 
 // --- keys and mouse ------------------------------------------------------------------------------
 
@@ -400,6 +409,7 @@ addEventListener("keydown", (e) => {
     pressPending = true;
   }
   keys.add(e.code);
+  if (e.code === "KeyF" && !e.repeat) fullscreen(!document.fullscreenElement);
   const n = { Digit1: 1, Digit2: 2, Digit3: 3, Numpad1: 1, Numpad2: 2, Numpad3: 3 }[e.code];
   if (n) choose(n);
 });
