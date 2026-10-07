@@ -1,4 +1,6 @@
-// Fills the live box from the server's /api/summary every 5 seconds.
+// Fills the live box from the server's /api/summary every 5 seconds, and mounts the Endless Mind
+// sign-in box (served by the realm library at ../endlessmind/signin.js).
+import { mountSignIn } from "../endlessmind/signin.js";
 const $ = (id) => document.getElementById(id);
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 let ends = null; // seconds of round left at the last fetch, and when we got it
@@ -47,3 +49,10 @@ async function refresh() {
 refresh();
 setInterval(refresh, 5000);
 setInterval(showTimer, 1000);
+
+mountSignIn($("signin"), {
+  onChange: (me) => {
+    const b = $("play");
+    if (b) b.textContent = me && me.player ? `Play as ${me.playerName || me.name || "yourself"}` : "Play";
+  },
+});

@@ -11,6 +11,7 @@ h2 { margin: 2rem 0 .5rem; font-size: 1.25rem; }
 .bot { color: var(--dim); font-size: .8rem; border: 1px solid var(--line); border-radius: 6px; padding: 0 .3rem; margin-left: .4rem; }
 .controls th { width: 40%; }
 #signin:empty { display: none; }
+#signin { padding: .8rem 1rem; border-radius: 12px; background: #ffffff0d; }
 #signin { margin-top: 1.5rem; }
 footer { margin-top: 2.5rem; color: var(--dim); font-size: .9rem; }
 footer p { margin: .2rem 0; }
