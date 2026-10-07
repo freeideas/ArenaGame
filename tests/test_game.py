@@ -313,6 +313,7 @@ def test_dead_watchers_do_not_count_and_bots_die_to_one_hit():
     b = Person(game, "b").p
     game.enter(b, t)
     game.kill(b, a, "blaster", t)  # b dies and never clicks to come back
+    a.hp = 10**6  # a stands still through all this; the bots must not be able to kill them
     bot = game.bots()[0]
     assert bot.hp == 1 and not game.give(bot, "health") and not game.give(bot, "armor")
     game.kill(bot, a, "blaster", t)
