@@ -319,4 +319,9 @@ def test_dead_watchers_do_not_count_and_bots_die_to_one_hit():
     t = run(game, t, 3)
     assert bot.dead, "within 15 s of dying, b still counts, so one bot is enough"
     t = run(game, t, 15)
-    assert len([x for x in game.bots() if not x.dead]) == 2, "a person who stays dead and watches does not count"
+    assert game.wanted_bots() == 2, "a person who stays dead and watches does not count"
+    seen = 0
+    for _ in range(90):
+        t = run(game, t, 1 / 30)
+        seen = max(seen, len([x for x in game.bots() if not x.dead]))
+    assert seen == 2, "both bots are back (one may be waiting out its 2 s respawn at any one moment)"
