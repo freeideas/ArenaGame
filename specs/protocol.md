@@ -30,6 +30,7 @@ The session cookie set by the realm library (sign-in) rides on the WebSocket han
 | `{t: "state", tick, players, shells, items, events}`      | 20 times a second; see below                                       |
 | `{t: "round", phase, ends, scores, limit}`                | `phase` is `play` or `over`; `ends` is the server time (seconds) the phase ends; `scores` as in `state` |
 | `{t: "error", text}`                                      | Something refused, in plain words                                  |
+| `{t: "bye", text}`                                        | The server is done with this connection and closes it; the page does not reconnect. Sent when the same guest or account connects again (one identity, one seat) and when nothing arrived for 30 s |
 | `{t: "ping", c}`                                          | Every 2 s; answer with `pong` at once. The round trip is your `ping` in the scores |
 
 A `state` message has:

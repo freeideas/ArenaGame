@@ -26,6 +26,7 @@ export function connect(on) {
   url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
   let socket = null;
   let tries = 0;
+  let done = false; // the server said bye: stay closed and do not reconnect
 
   function open() {
     socket = new WebSocket(url.href);
@@ -41,9 +42,11 @@ export function connect(on) {
       if (m.t === "hello" && m.guest) {
         try { localStorage.setItem(GUEST_KEY, m.guest); } catch { /* fine */ }
       }
+      if (m.t === "bye") done = true;
       on.message(m);
     };
     socket.onclose = () => {
+      if (done) { on.status({ up: false, done: true }); return; }
       const wait = Math.min(15, 2 ** tries);
       tries++;
       on.status({ up: false, wait, tries });

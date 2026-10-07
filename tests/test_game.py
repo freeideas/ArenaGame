@@ -238,6 +238,7 @@ def test_round_ends_at_frag_limit_and_resets():
     assert records and records[0][0] == "acct"
     game.fire(a, BLASTER, a.eye, (0, 0, -1), None, 51.0)  # nobody shoots now
     assert not any(e["e"] == "shot" for e in game.events)
+    heard(game, 50.0 + g.OVER_SECONDS)
     game.tick(50.0 + g.OVER_SECONDS, 1 / 30)
     assert game.phase == "play" and a.frags == 0 and b.frags == 0 and not b.dead
     assert people[0].last("spawn") is not None
@@ -245,16 +246,25 @@ def test_round_ends_at_frag_limit_and_resets():
 
 def test_round_ends_at_time_limit():
     game, _, _ = setup()
+    heard(game, g.ROUND_SECONDS + 0.1)
     game.tick(g.ROUND_SECONDS + 0.1, 1 / 30)
     assert game.phase == "over"
 
 
 # --- bots ----------------------------------------------------------------------------------------
 
+def heard(game, now):
+    """The test's people count as heard from, so they are not dropped as silent."""
+    for p in game.people():
+        game.heard_from(p, now)
+
+
 def run(game, start, seconds):
+    """Tick the game along; the test's people count as heard from, so they are not dropped as silent."""
     t = start
     for _ in range(round(seconds * 30)):
         t += 1 / 30
+        heard(game, t)
         game.tick(t, 1 / 30)
     return t
 
@@ -326,3 +336,16 @@ def test_dead_watchers_do_not_count_and_bots_die_to_one_hit():
         t = run(game, t, 1 / 30)
         seen = max(seen, len([x for x in game.bots() if not x.dead]))
     assert seen == 2, "both bots are back (one may be waiting out its 2 s respawn at any one moment)"
+
+
+def test_same_guest_replaces_the_older_connection_and_silence_drops():
+    game = Game(rng=random.Random(5))
+    a = Person(game, "a")
+    game.enter(a.p, 0.0)
+    b = Person(game, "b")
+    again = []
+    p2 = game.join("a2", "a" * 8, again.append, 1.0, name="A")
+    assert a.last("bye") and a.p.id not in game.players and p2.id in game.players
+    assert b.p.id in game.players, "a different guest is untouched"
+    game.tick(40.0, 1 / 30)  # nobody has been heard from since they joined
+    assert b.last("bye") and b.p.id not in game.players

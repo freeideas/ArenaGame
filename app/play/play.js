@@ -71,6 +71,7 @@ const send = (m) => net?.send(m);
 
 function connection(s) {
   if (s.up) hud.net(null);
+  else if (s.done) hud.net(null);
   else {
     hud.net(`Lost the connection. Trying again in ${s.wait} s...`);
     if (joined) wantJoin = true; // come back into the arena after reconnecting
@@ -137,6 +138,10 @@ function receive(m) {
     case "error":
       hud.toast(m.text || "Something went wrong.");
       break;
+    case "bye":
+      alive = false;
+      hud.cover(true, me.name, false, m.text || "This connection is done. Reload to play again.");
+      break;
   }
 }
 
@@ -175,7 +180,10 @@ function takeState(m, now) {
   while (states.length > 30) states.shift();
   latest = m;
   for (const e of m.events || []) {
-    if (e.e === "frag") hud.feed(e, nameOf, me.id);
+    if (e.e === "frag") {
+      hud.feed(e, nameOf, me.id);
+      if (e.by === me.id && e.of !== me.id) hud.toast(e.how === "void" ? `You knocked ${nameOf(e.of)} into the void.` : `You got ${nameOf(e.of)} with the ${HOW_TEXT[e.how] || e.how}.`);
+    }
     else if (e.e === "shot") {
       if (e.by !== me.id) view.addShot([e.ox, e.oy, e.oz], [e.hx, e.hy, e.hz], e.w);
       else if (e.hit) hud.hitFlash();

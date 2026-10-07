@@ -74,6 +74,7 @@ ARENA_MAX = 16
 NAME_MAX = 24
 SAVE_EVERY = 5.0         # seconds between writes of the lasting store
 PING_EVERY = 2.0
+SILENT_LIMIT = 30.0      # a connection that sends nothing for this long is dropped
 MILESTONES = (100, 500)  # lifetime frags; after 500, every 500
 
 # Checking moves (specs/protocol.md)
@@ -180,6 +181,8 @@ class Player:
     frags: int = 0
     deaths: int = 0
     ping: int = 0
+    heard: float = 0.0    # when the browser last sent anything
+    bye: str | None = None  # set when the server is done with this connection, with the reason
     hurt_by: str | None = None    # who damaged this player last, and when
     hurt_at: float = -1e9
     # Checking a person's moves
@@ -274,13 +277,30 @@ class Game:
         """A browser said hello. `account` is the signed-in Endless Mind player, with `name` their
         name; guests get the name they chose before, or `name`."""
         chosen = (self.store.guests.get(guest) or {}).get("name") if not account else None
+        # One identity, one seat: an older connection with the same account or guest ID (another tab,
+        # or a socket whose closing never reached us) is dropped, so nobody appears twice.
+        for old in list(self.players.values()):
+            if old.bot or old.bye:
+                continue
+            if (account and old.account == account) or (not account and old.guest == guest):
+                self.drop(old, "You joined from another tab or window, so this one is done.")
         player = Player(id, chosen or name or "Guest", send, guest=guest, account=account)
+        player.heard = now
         self.players[id] = player
         send({"t": "hello", "id": id, "guest": guest, "name": player.name, "player": account,
               "map_version": self.map.version})
         if self.ends is not None:
             send(self.round_message())
         return player
+
+    def drop(self, player: Player, why: str) -> None:
+        """Tell a browser we are done with it and take its player out; the socket closes after `bye`."""
+        player.bye = why
+        player.send({"t": "bye", "text": why})
+        self.leave(player)
+
+    def heard_from(self, player: Player, now: float) -> None:
+        player.heard = now
 
     def leave(self, player: Player) -> None:
         self.players.pop(player.id, None)
@@ -794,6 +814,9 @@ class Game:
     def tick(self, now: float, dt: float) -> None:
         self.now = now
         self.tick_count += 1
+        for p in list(self.players.values()):
+            if not p.bot and not p.bye and now - p.heard > SILENT_LIMIT:
+                self.drop(p, "Nothing came from your browser for 30 seconds, so this connection is done.")
         if self.dirty and now - self.saved_at >= SAVE_EVERY:
             self.flush(now)
         if self.ends is None:

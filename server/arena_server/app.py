@@ -148,7 +148,11 @@ async def play(ws: WebSocket):
 
     async def writer():
         while True:
-            await ws.send_text(json.dumps(await outbox.get()))
+            message = await outbox.get()
+            await ws.send_text(json.dumps(message))
+            if message.get("t") == "bye":
+                await ws.close()
+                return
 
     sending = asyncio.create_task(writer())
     try:
@@ -158,6 +162,10 @@ async def play(ws: WebSocket):
                 continue
             now = time.monotonic()
             kind = message.get("t")
+            if player is not None:
+                if player.bye:
+                    break
+                game.heard_from(player, now)
             if player is None:
                 if kind != "hello":
                     continue
