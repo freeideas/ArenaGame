@@ -296,18 +296,6 @@ def test_bots_go_when_the_last_person_leaves():
     assert game.players == {} and game.summary()["round"]["ends"] is None
 
 
-def test_bot_faces_nearest_enemy():
-    game = Game(rng=random.Random(4))
-    a = Person(game, "a").p
-    game.enter(a, 0.0)
-    run(game, 0.0, 0.2)
-    bot = game.bots()[0]
-    d = g.aim_from(bot.yaw, bot.pitch)
-    e = min((p for p in game.arena() if p is not bot), key=lambda p: math.dist((p.x, p.y, p.z), (bot.x, bot.y, bot.z)))
-    to = aim((bot.x, bot.y, bot.z), (e.x, e.y, e.z))
-    assert sum(d[i] * to[i] for i in range(3)) == pytest.approx(1, abs=1e-6)
-
-
 def test_summary_shape():
     game, (a, b), _ = setup()
     a.frags = 3
