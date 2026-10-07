@@ -8,7 +8,7 @@ It is an original game in a well-worn genre, built plain first: flat-shaded plat
 
 ## Controls
 
-W A S D or arrows move, Space jumps, mouse looks (click the page to capture the mouse), left button fires, 1 2 3 or the mouse wheel change weapon, Tab shows the scores. A computer with a mouse is needed for now.
+W A S D move, the mouse or the arrow keys look (click the page to capture the mouse), left button or Enter fires, Space jumps, 1 2 3 or the mouse wheel change weapon, Tab shows the scores. A computer with a keyboard is needed for now.
 
 ## How it is made
 

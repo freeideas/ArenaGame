@@ -624,8 +624,7 @@ class Game:
         victim.dead, victim.died_at, victim.hp = True, now, min(victim.hp, 0)
         victim.deaths += 1
         if by is victim or (by is None and how == "void"):
-            victim.frags -= 1
-            by = None
+            by = None  # killing yourself counts for nobody
         elif by is not None:
             by.frags += 1
             if by.account:

@@ -173,7 +173,7 @@ def test_void_without_credit_costs_a_point():
     game, (a, b), _ = setup()
     game.damage(b, 8, a, "blaster", 10.0)
     game.report_at(b, {"x": 0, "y": -50, "z": 0, "seq": 1}, 14.5)
-    assert b.dead and a.frags == 0 and b.frags == -1
+    assert b.dead and a.frags == 0 and b.frags == 0
     assert game.events[-1] == {"e": "frag", "by": None, "of": b.id, "how": "void"}
 
 

@@ -18,6 +18,8 @@ const SWITCH_TIME = 0.3;
 const RESPAWN_WAIT = 2;
 const PITCH_LIMIT = 89 * Math.PI / 180;
 const LOOK_SPEED = 0.0022; // radians per pixel of mouse movement
+const KEY_LOOK_YAW = 2.4;   // radians per second when an arrow key is held
+const KEY_LOOK_PITCH = 1.6;
 const WEAPON = {
   1: { every: 1 / 8, range: 60, spread: 2 * Math.PI / 180 },
   2: { every: 0.8, range: 200, spread: 0 },
@@ -392,13 +394,18 @@ const typing = () => document.activeElement?.tagName === "INPUT";
 addEventListener("keydown", (e) => {
   if (typing()) return;
   if (e.code === "Tab") { e.preventDefault(); tabHeld = true; return; }
-  if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
+  if (["Space", "Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
+  if (e.code === "Enter" && !keys.has("Enter")) {
+    if (joined && !alive) { respawn(); return; }
+    pressPending = true;
+  }
   keys.add(e.code);
   const n = { Digit1: 1, Digit2: 2, Digit3: 3, Numpad1: 1, Numpad2: 2, Numpad3: 3 }[e.code];
   if (n) choose(n);
 });
 addEventListener("keyup", (e) => {
   if (e.code === "Tab") tabHeld = false;
+  if (e.code === "Enter" && !mouseDown) pressPending = false;
   keys.delete(e.code);
 });
 addEventListener("blur", () => { keys.clear(); tabHeld = false; mouseDown = false; });
@@ -427,8 +434,8 @@ document.addEventListener("pointerlockchange", () => { if (!locked()) { mouseDow
 function input() {
   const k = (...codes) => codes.some((c) => keys.has(c));
   return {
-    forward: (k("KeyW", "ArrowUp") ? 1 : 0) - (k("KeyS", "ArrowDown") ? 1 : 0),
-    right: (k("KeyD", "ArrowRight") ? 1 : 0) - (k("KeyA", "ArrowLeft") ? 1 : 0),
+    forward: (k("KeyW") ? 1 : 0) - (k("KeyS") ? 1 : 0),
+    right: (k("KeyD") ? 1 : 0) - (k("KeyA") ? 1 : 0),
     jump: k("Space"),
     yaw,
   };
@@ -445,6 +452,14 @@ function frame(t) {
   const now = clock();
   const over = round.phase === "over";
 
+  // Arrow keys look, like a mouse that moves at a steady rate.
+  if (!typing()) {
+    const kx = (keys.has("ArrowRight") ? 1 : 0) - (keys.has("ArrowLeft") ? 1 : 0);
+    const ky = (keys.has("ArrowUp") ? 1 : 0) - (keys.has("ArrowDown") ? 1 : 0);
+    yaw -= kx * KEY_LOOK_YAW * dt;
+    pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch + ky * KEY_LOOK_PITCH * dt));
+  }
+
   if (alive && body && !over) {
     const steps = Math.ceil(dt / MAX_STEP) || 1;
     const move = input();
@@ -452,7 +467,7 @@ function frame(t) {
       body = step(body, move, dt / steps, map);
       if (body.fell && LOCAL) { localDeaths++; die(null, "void"); break; }
     }
-    if (mouseDown && (w === 1 || pressPending) && fire()) pressPending = false;
+    if ((mouseDown || keys.has("Enter")) && (w === 1 || pressPending) && fire()) pressPending = false;
   }
 
   if (alive && body && now - lastSent >= SEND_EVERY) {

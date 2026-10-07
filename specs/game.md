@@ -8,7 +8,7 @@ It is an original game in a well-worn genre (open-source games such as OpenArena
 
 - **Player**: a person in a browser, or a **bot** (a computer-driven player). Both appear in the same lists, with bots marked.
 - **Round**: one match. Ends at the frag limit or the time limit, then a short scoreboard, then a new round.
-- **Frag**: one point, for killing another player. Killing yourself (falling, your own shell) costs one point.
+- **Frag**: one point, for killing another player. Killing yourself (falling, your own shell) counts for nobody: it is only a death.
 - **Tick**: one step of the server's clock, 30 times a second.
 
 ## Space, units and the player
@@ -32,7 +32,7 @@ Browsers move their own player (`app/play/motion.js`), so controls feel instant;
 | Step up                     | up to 0.5 m without jumping |
 | Gravity                     | 20 m/s²   |
 
-Keys: W A S D or arrows move, Space jumps, mouse looks (pointer lock), left button fires, 1 2 3 or the wheel change weapon. A jump pressed while in the air is remembered for 0.15 s so landing and jumping again feels natural.
+Keys: W A S D move, the mouse or the arrow keys look (pointer lock for the mouse), left button or Enter fires, Space jumps, 1 2 3 or the wheel change weapon, Tab held shows the scores. A jump pressed while in the air is remembered for 0.15 s so landing and jumping again feels natural.
 
 **Collision** is against the map's boxes only: a player is an axis-aligned box 0.8 x 1.8 x 0.8 for this purpose. Resolve each axis separately: move in x, push out; move in y, push out (and note whether standing on something); move in z, push out. Players pass through each other.
 
@@ -76,7 +76,7 @@ A pickup is taken by walking into it (within 1 m of its point, feet within 1.5 m
 ## Spawning, dying and the round
 
 - A dead player respawns by clicking, once 2 s have passed since death, at the spawn point farthest from any living enemy (with a little randomness among the top three). Bots respawn by the bot rule below.
-- Falling into the void: if someone damaged you in the last 4 s, it is their frag; otherwise it costs you one point. Your own shell killing you costs one point.
+- Falling into the void: if someone damaged you in the last 4 s, it is their frag; otherwise it counts for nobody. Your own shell killing you counts for nobody either; both are only deaths.
 - Round: free-for-all, ends at 20 frags or 8 minutes, whichever first. Then 8 s of scoreboard (nobody moves or shoots, the page shows the standings), then everything resets: scores, pickups, positions.
 - Scores show frags, deaths and ping, bots marked.
 
