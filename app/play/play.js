@@ -579,7 +579,7 @@ function frame(t) {
     hud.board(tabHeld || over, players, me.id, over ? winner : "",
       over ? "The next round starts soon." : `First to ${round.limit} frags.`);
     hud.death(joined && !alive, deathText, now - deadAt >= RESPAWN_WAIT);
-    hud.lockHint(joined && alive && !locked() && !over);
+    hud.pause(joined && alive && !locked() && !over);
   }
 }
 requestAnimationFrame(frame);

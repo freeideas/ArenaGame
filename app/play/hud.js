@@ -137,8 +137,9 @@ export function toast(text) {
   toastTimer = setTimeout(() => { $("toast").hidden = true; }, 3500);
 }
 
-export function lockHint(show) {
-  $("lockhint").hidden = !show;
+/** The pause panel with the keys, shown while you are in the arena and the mouse is free (Esc). */
+export function pause(show) {
+  $("pause").hidden = !show;
 }
 
 let hitTimer = 0;
