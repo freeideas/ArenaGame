@@ -71,6 +71,8 @@ Health 100 at spawn, at most 200; above 100 it decays by 1 per second down to 10
 | Shells       | +5 shells             | 20 s           |
 | Charges      | +5 charges            | 20 s           |
 
+Each pickup looks like what it is, bobbing and spinning over a glowing ring of its color, with its name shown above it within about 8 m: health is a white medkit with a red cross (Big health twice the size, with a green glow), armor is a blue metal shield with a star emblem (the shard smaller), the Launcher and Beam are the gun models themselves, and Shells and Charges are ammo clips, orange and purple.
+
 A pickup is taken by walking into it (within 1 m of its point, feet within 1.5 m of its height). A pickup that would give nothing (full health, full ammo) is not taken.
 
 ## Spawning, dying and the round

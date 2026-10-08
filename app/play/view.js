@@ -29,17 +29,20 @@ const SURFACE = {
 };
 const TINT = 0.3; // how much a box color tints its texture (0 none, 1 full)
 
-// How each pickup looks: a shape, a color and a size.
+// How each pickup looks: what it is drawn as (see itemModel), the color of its floor ring and
+// label, and its label text.
 const ITEM_LOOK = {
-  health: { shape: "box", color: 0x5ee08a, size: 0.35 },
-  bighealth: { shape: "box", color: 0x2cff7a, size: 0.6 },
-  shard: { shape: "tetra", color: 0x8fd8ff, size: 0.3 },
-  armor: { shape: "ico", color: 0x3aa8ff, size: 0.45 },
-  launcher: { shape: "cyl", color: 0xff8a3d, size: 0.5 },
-  beam: { shape: "long", color: 0xd36bff, size: 0.6 },
-  shells: { shape: "box", color: 0xff8a3d, size: 0.28 },
-  charges: { shape: "box", color: 0xd36bff, size: 0.28 },
+  health: { kind: "medkit", size: 0.42, color: 0x5ee08a, name: "Health +25" },
+  bighealth: { kind: "medkit", size: 0.8, color: 0x2cff7a, name: "Big health", halo: true },
+  shard: { kind: "shield", size: 0.42, color: 0x8fd8ff, name: "Armor shard" },
+  armor: { kind: "shield", size: 0.75, color: 0x3aa8ff, name: "Armor" },
+  launcher: { kind: "gun", w: 2, size: 0.85, color: 0xff8a3d, name: "Launcher" },
+  beam: { kind: "gun", w: 3, size: 1.2, color: 0xd36bff, name: "Beam" },
+  shells: { kind: "clip", file: "clip-large", size: 0.5, color: 0xff8a3d, name: "Shells" },
+  charges: { kind: "clip", file: "clip-small", size: 0.42, color: 0xd36bff, name: "Charges" },
 };
+const LABEL_NEAR = 8; // metres from the eye within which a pickup's label shows
+const LABEL_FADE = 1.5; // metres over which it fades in
 const WEAPON_COLOR = { 1: 0x7fd7ff, 2: 0xff8a3d, 3: 0xd36bff };
 // Which model each weapon uses, how long it is held in view and in others' hands (metres), and a
 // hue turn for its palette so it matches WEAPON_COLOR (the Blaster's red model becomes light blue).
@@ -164,16 +167,94 @@ function scorchTexture() {
   });
 }
 
-function itemGeometry(look) {
-  const s = look.size;
-  if (look.shape === "tetra") return new THREE.TetrahedronGeometry(s);
-  if (look.shape === "ico") return new THREE.IcosahedronGeometry(s * 0.7, 0);
-  if (look.shape === "cyl") return new THREE.CylinderGeometry(s * 0.3, s * 0.3, s * 1.4, 7).rotateZ(Math.PI / 2);
-  if (look.shape === "long") return new THREE.BoxGeometry(s * 2, s * 0.25, s * 0.25);
-  return new THREE.BoxGeometry(s, s, s);
+/** The medkit face: white with a red cross, drawn on every face of the box. */
+function medkitTexture() {
+  return canvasTexture(128, (g, n) => {
+    g.fillStyle = "#f4f4f2";
+    g.fillRect(0, 0, n, n);
+    g.strokeStyle = "#c9c9c4";
+    g.lineWidth = 6;
+    g.strokeRect(3, 3, n - 6, n - 6);
+    g.fillStyle = "#d81e2a";
+    const a = n * 0.2, b = n * 0.66;
+    g.fillRect((n - a) / 2, (n - b) / 2, a, b);
+    g.fillRect((n - b) / 2, (n - a) / 2, b, a);
+  });
 }
 
-/** A name floating over another player, as a sprite with canvas text. */
+/** The armor emblem: blue metal with a light rim and a smaller shield with a star inside. */
+function shieldTexture() {
+  return canvasTexture(256, (g, n) => {
+    const grad = g.createLinearGradient(0, 0, n, n);
+    grad.addColorStop(0, "#6fa8ff");
+    grad.addColorStop(0.5, "#2f64c8");
+    grad.addColorStop(1, "#1a3b86");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, n, n);
+    const outline = (k) => {
+      // The same shape as shieldShape, in image coordinates (y down), shrunk by k about the middle.
+      const x = (u) => n / 2 + u * n * k, y = (v) => n / 2 - v * n * k;
+      g.beginPath();
+      g.moveTo(x(-0.5), y(0.5));
+      g.lineTo(x(0.5), y(0.5));
+      g.lineTo(x(0.5), y(0.05));
+      g.quadraticCurveTo(x(0.45), y(-0.3), x(0), y(-0.5));
+      g.quadraticCurveTo(x(-0.45), y(-0.3), x(-0.5), y(0.05));
+      g.closePath();
+    };
+    g.lineJoin = "round";
+    g.strokeStyle = "#cfe3ff";
+    g.lineWidth = n * 0.05;
+    outline(0.9);
+    g.stroke();
+    outline(0.55);
+    g.fillStyle = "#123070";
+    g.fill();
+    g.strokeStyle = "#e8f2ff";
+    g.lineWidth = n * 0.03;
+    g.stroke();
+    // A five-pointed star in the inner shield.
+    g.fillStyle = "#e8f2ff";
+    g.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 ? n * 0.06 : n * 0.14, a = -Math.PI / 2 + (i * Math.PI) / 5;
+      g.lineTo(n / 2 + Math.cos(a) * r, n * 0.47 + Math.sin(a) * r);
+    }
+    g.fill();
+  });
+}
+
+/** A shield outline 1 wide and 1 tall, centred: flat top, straight sides curving to a point. */
+function shieldShape() {
+  const s = new THREE.Shape();
+  s.moveTo(-0.5, 0.5);
+  s.lineTo(0.5, 0.5);
+  s.lineTo(0.5, 0.05);
+  s.quadraticCurveTo(0.45, -0.3, 0, -0.5);
+  s.quadraticCurveTo(-0.45, -0.3, -0.5, 0.05);
+  s.closePath();
+  return s;
+}
+
+/** A soft round glow, for the ring on the floor under each pickup and the big health's halo. */
+function glowTexture(ring) {
+  return canvasTexture(128, (g, n) => {
+    const grad = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+    if (ring) {
+      grad.addColorStop(0, "rgba(255,255,255,0.15)");
+      grad.addColorStop(0.7, "rgba(255,255,255,0.35)");
+      grad.addColorStop(0.82, "rgba(255,255,255,0.9)");
+      grad.addColorStop(1, "rgba(255,255,255,0)");
+    } else {
+      grad.addColorStop(0, "rgba(255,255,255,0.8)");
+      grad.addColorStop(1, "rgba(255,255,255,0)");
+    }
+    g.fillStyle = grad;
+    g.fillRect(0, 0, n, n);
+  });
+}
+
+/** A name floating over another player (or a pickup), as a sprite with canvas text. */
 function makeLabel(text, color) {
   const c = document.createElement("canvas");
   c.width = 256;
@@ -224,8 +305,9 @@ function greyPaintTexture() {
  * @type {Record<number, THREE.Group>}
  */
 const gunModels = {};
+const gltfLoader = new GLTFLoader();
 const gunsReady = new Promise((resolve) => {
-  const loader = new GLTFLoader();
+  const loader = gltfLoader;
   let left = Object.keys(GUNS).length;
   const done = () => { if (--left === 0) resolve(); };
   for (const [w, spec] of Object.entries(GUNS)) {
@@ -257,6 +339,25 @@ const gunsReady = new Promise((resolve) => {
     }, undefined, (e) => { console.error(`Could not load ${spec.file}.glb:`, e); done(); });
   }
 });
+
+/**
+ * The ammo clips for the Shells and Charges pickups, loaded once: centred and scaled to 1 m tall.
+ * @type {Record<string, THREE.Group>}
+ */
+const clipModels = {};
+const clipsReady = Promise.all(["clip-large", "clip-small"].map((file) => new Promise((resolve) => {
+  gltfLoader.load(`${MODELS}${file}.glb`, (gltf) => {
+    const model = gltf.scene;
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    model.position.copy(box.getCenter(new THREE.Vector3())).negate();
+    const g = new THREE.Group();
+    g.add(model);
+    g.scale.setScalar(1 / size.y);
+    clipModels[file] = g;
+    resolve();
+  }, undefined, (e) => { console.error(`Could not load ${file}.glb:`, e); resolve(); });
+})));
 
 /** A copy of a material whose palette image has its hue turned by `degrees`. */
 function hueTurned(material, degrees) {
@@ -404,19 +505,93 @@ export function createView(canvas, map) {
     return { material, mark, wave };
   });
 
-  // Pickups: small spinning shapes, hidden while taken.
+  // Pickups: each drawn as what it is (medkit, shield, gun, ammo clips), bobbing and spinning over
+  // a glowing ring on the floor, with a name label that shows close up. Hidden while taken.
+  const medkitMap = medkitTexture(), shieldMap = shieldTexture();
+  const ringMap = glowTexture(true), haloMap = glowTexture(false);
+  const ringGeometry = new THREE.PlaneGeometry(1.5, 1.5).rotateX(-Math.PI / 2);
+  const shieldGeometry = new THREE.ExtrudeGeometry(shieldShape(), { depth: 0.08, bevelEnabled: true,
+    bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 3, curveSegments: 16 }).translate(0, 0, -0.04);
+  {
+    // Map the emblem straight onto the front and back, by x and y.
+    const pos = shieldGeometry.attributes.position, uv = shieldGeometry.attributes.uv;
+    for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) + 0.5, pos.getY(i) + 0.5);
+    uv.needsUpdate = true;
+  }
+  /** Fill `spin` (the bobbing, spinning part) with the model for one pickup. */
+  function itemModel(look, spin) {
+    const color = new THREE.Color(look.color);
+    if (look.kind === "medkit") {
+      const s = look.size;
+      const box = new THREE.Mesh(new THREE.BoxGeometry(s * 1.2, s, s),
+        new THREE.MeshStandardMaterial({ map: medkitMap, emissiveMap: medkitMap, emissive: 0xffffff, emissiveIntensity: 0.25, roughness: 0.55, metalness: 0 }));
+      spin.add(box);
+      if (look.halo) {
+        const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloMap, color, transparent: true,
+          blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, opacity: 0.8 }));
+        halo.scale.setScalar(s * 2.6);
+        spin.add(halo);
+      }
+    } else if (look.kind === "shield") {
+      const plate = new THREE.Mesh(shieldGeometry, new THREE.MeshStandardMaterial({ color: 0xbcd4ff, map: shieldMap,
+        emissive: 0x2a5cc0, emissiveMap: shieldMap, emissiveIntensity: 0.35, metalness: 0.85, roughness: 0.3 }));
+      plate.scale.set(look.size, look.size * 1.15, look.size * (look.size > 0.5 ? 1.4 : 1));
+      plate.rotation.x = -0.15; // leaning back a little, as if standing on its point
+      spin.add(plate);
+    } else if (look.kind === "gun") {
+      gunsReady.then(() => {
+        const gun = gunCopy(look.w, look.size);
+        if (!gun) return;
+        gun.rotation.set(0.2, 0, 0.35); // nose up a little and rolled, as if lying on a slope
+        spin.add(gun);
+        shadows(spin);
+      });
+    } else if (look.kind === "clip") {
+      clipsReady.then(() => {
+        const base = clipModels[look.file];
+        if (!base) return;
+        for (const dx of [-0.5, 0.5]) {
+          const clip = base.clone();
+          clip.traverse((o) => {
+            if (!o.isMesh) return;
+            o.material = o.material.clone();
+            o.material.color.copy(color).lerp(new THREE.Color(0xffffff), 0.25);
+            o.material.emissive = color.clone();
+            o.material.emissiveIntensity = 0.15;
+          });
+          clip.scale.multiplyScalar(look.size);
+          clip.position.x = dx * look.size * 0.32;
+          clip.rotation.y = dx * 0.5;
+          spin.add(clip);
+        }
+        shadows(spin);
+      });
+    }
+    shadows(spin);
+  }
+  function shadows(obj) {
+    obj.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  }
   const items = map.items.map((item, i) => {
     const look = ITEM_LOOK[item.type] || ITEM_LOOK.health;
     const color = new THREE.Color(look.color);
-    const mesh = new THREE.Mesh(itemGeometry(look),
-      new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.45, roughness: 0.35, metalness: 0.3, flatShading: true }));
-    mesh.position.set(item.at[0], item.at[1] + 0.8, item.at[2]);
-    mesh.rotation.y = i;
-    mesh.castShadow = true;
-    scene.add(mesh);
-    return mesh;
+    const root = new THREE.Group();
+    root.position.set(item.at[0], item.at[1], item.at[2]);
+    const ringMesh = new THREE.Mesh(ringGeometry, new THREE.MeshBasicMaterial({ map: ringMap, color, transparent: true,
+      opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    ringMesh.position.y = 0.02;
+    const spin = new THREE.Group();
+    spin.rotation.y = i;
+    itemModel(look, spin);
+    const label = makeLabel(look.name, `#${color.clone().lerp(new THREE.Color(0xffffff), 0.45).getHexString()}`);
+    label.scale.set(1.2, 0.3, 1);
+    label.position.y = 0.8 + Math.max(0.55, look.size * 0.75 + 0.25);
+    label.visible = false;
+    root.add(ringMesh, spin, label);
+    root.userData = { spin, label };
+    scene.add(root);
+    return root;
   });
-
   // The held weapon, at the lower right of the view. It has its own small scene and camera, drawn
   // after the world with the depth cleared, so it never pokes into walls.
   const heldScene = new THREE.Scene();
@@ -647,8 +822,14 @@ export function createView(canvas, map) {
     }
     items.forEach((mesh, i) => {
       mesh.visible = !f.items || !!f.items[i];
-      mesh.rotation.y = now * 1.6 + i;
-      mesh.position.y = map.items[i].at[1] + 0.8 + Math.sin(now * 2 + i) * 0.08;
+      const { spin, label } = mesh.userData;
+      spin.rotation.y = now * 1.6 + i;
+      spin.position.y = 0.8 + Math.sin(now * 2 + i) * 0.08;
+      // The label fades in as you come within LABEL_NEAR metres.
+      const d = Math.hypot(mesh.position.x - f.eye.x, mesh.position.y + label.position.y - f.eye.y, mesh.position.z - f.eye.z);
+      const k = Math.min(1, Math.max(0, (LABEL_NEAR - d) / LABEL_FADE));
+      label.visible = k > 0;
+      label.material.opacity = k;
     });
     updatePlayers(f.players);
     updateShells(f.shells);
