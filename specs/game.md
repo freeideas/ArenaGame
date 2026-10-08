@@ -32,7 +32,7 @@ Browsers move their own player (`app/play/motion.js`), so controls feel instant;
 | Step up                     | up to 0.5 m without jumping |
 | Gravity                     | 20 m/s²   |
 
-Keys: W A S D move, the mouse or the arrow keys look (pointer lock for the mouse), left button or Enter fires, Space jumps, 1 2 3 or the wheel change weapon, Tab held shows the scores, F toggles full screen (pressing Play asks for it), M turns sound off or on (remembered in this browser), Esc frees the mouse and shows a pause panel with this list (others keep playing; a click resumes). A jump pressed while in the air is remembered for 0.15 s so landing and jumping again feels natural.
+Keys: W A S D move, the mouse or the arrow keys look (pointer lock for the mouse), left button or Enter fires, Space jumps, 1 2 3 or the wheel change weapon, Tab held shows the scores, F toggles full screen (pressing Play asks for it), M turns sound off or on (remembered in this browser), Esc steps out (see below). The dead view lists all of these keys. A jump pressed while in the air is remembered for 0.15 s so landing and jumping again feels natural.
 
 **Collision** is against the map's boxes only: a player is an axis-aligned box 0.8 x 1.8 x 0.8 for this purpose. Resolve each axis separately: move in x, push out; move in y, push out (and note whether standing on something); move in z, push out. Players pass through each other.
 
@@ -75,6 +75,7 @@ A pickup is taken by walking into it (within 1 m of its point, feet within 1.5 m
 
 ## Spawning, dying and the round
 
+- Pressing Play puts you in the arena dead: the dead view shows the scores and the keys, and a click or Enter goes in. Esc while fighting steps out the same way (the mouse is let go, you are dead, nobody scores a frag or a death) and a click goes back in at once.
 - A dead player respawns by clicking, once 2 s have passed since death, at the spawn point farthest from any living enemy (with a little randomness among the top three). Bots respawn by the bot rule below.
 - Falling into the void: if someone damaged you in the last 4 s, it is their frag; otherwise it counts for nobody. Your own shell killing you counts for nobody either; both are only deaths.
 - Round: free-for-all, ends at 20 frags or 8 minutes, whichever first. Then 8 s of scoreboard (nobody moves or shoots, the page shows the standings), then everything resets: scores, pickups, positions.

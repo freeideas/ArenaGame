@@ -7,11 +7,12 @@ The play page and the server talk over one WebSocket at `/ws` (relative to the s
 | Message                                              | When                                                                 |
 | ---------------------------------------------------- | -------------------------------------------------------------------- |
 | `{t: "hello", guest}`                                | First. `guest` is the stored guest ID (32 hex digits) or null        |
-| `{t: "join"}`                                        | Play pressed: enter the arena (spawns at once)                       |
+| `{t: "join"}`                                        | Play pressed: enter the arena, dead at a spawn point until `respawn`  |
 | `{t: "at", x, y, z, yaw, pitch, vx, vy, vz, ground, seq}` | Where the player is, 20 times a second while alive; `seq` counts up |
 | `{t: "fire", w, ox, oy, oz, dx, dy, dz, hit}`        | Fired weapon `w` from `o` along unit direction `d`; `hit` is the player ID an instant-hit weapon struck, or null |
 | `{t: "weapon", w}`                                   | Switch to weapon `w` (1 Blaster, 2 Launcher, 3 Beam)                 |
-| `{t: "respawn"}`                                     | Click while dead and the 2 s have passed                             |
+| `{t: "respawn"}`                                     | Click while dead: 2 s after a death, at once after `start` or `out`  |
+| `{t: "out"}`                                         | Esc (the mouse let go) while alive: dead for nobody's score         |
 | `{t: "name", name}`                                  | Guest changed their shown name (1 to 24 characters, tidied by the server) |
 | `{t: "pong", c}`                                     | Answer to the server's `ping`, sending its `c` back unchanged       |
 
@@ -26,7 +27,7 @@ The session cookie set by the realm library (sign-in) rides on the WebSocket han
 | `{t: "you", hp, armor, ammo, weapons, w}`                 | Your own numbers changed (damage, pickup, switch)                  |
 | `{t: "push", vx, vy, vz}`                                 | Add this to your velocity now (knockback)                          |
 | `{t: "snap", x, y, z}`                                    | Your last `at` was impossible; you are here                        |
-| `{t: "die", by, how, x, y, z}`                            | You died: `by` is a player ID or null, `how` is `blaster`, `launcher`, `beam`, `void` or `self` |
+| `{t: "die", by, how, x, y, z}`                            | You are dead: `by` is a player ID or null, `how` is `blaster`, `launcher`, `beam`, `void`, `self`, or `start` (just joined) or `out` (Esc); those two count no death and no frag |
 | `{t: "state", tick, players, shells, items, events}`      | 20 times a second; see below                                       |
 | `{t: "round", phase, ends, scores, limit}`                | `phase` is `play` or `over`; `ends` is the server time (seconds) the phase ends; `scores` as in `state` |
 | `{t: "error", text}`                                      | Something refused, in plain words                                  |

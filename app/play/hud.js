@@ -97,8 +97,12 @@ export function board(show, players, me, winner, note) {
   }));
 }
 
+/** The dead view: what happened, the scores (the board moves in here), the keys, and how to go in. */
 export function death(show, text, canRespawn) {
   $("death").hidden = !show;
+  const board = $("board"), slot = $("deathboard");
+  if (show && board.parentElement !== slot) slot.append(board);
+  else if (!show && board.parentElement === slot) $("death").before(board);
   if (!show) return;
   $("deathtext").textContent = text;
   $("respawn").hidden = !canRespawn;
@@ -137,10 +141,7 @@ export function toast(text) {
   toastTimer = setTimeout(() => { $("toast").hidden = true; }, 3500);
 }
 
-/** The pause panel with the keys, shown while you are in the arena and the mouse is free (Esc). */
-export function pause(show) {
-  $("pause").hidden = !show;
-}
+
 
 let hitTimer = 0;
 export function hitFlash() {

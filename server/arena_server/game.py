@@ -166,6 +166,7 @@ class Player:
     in_arena: bool = False
     dead: bool = True
     died_at: float = -1e9
+    ready_at: float = -1e9        # when a click may bring the player back
     x: float = 0.0
     y: float = 0.0
     z: float = 0.0
@@ -314,7 +315,7 @@ class Game:
             self.phase, self.ends = "play", None
 
     def enter(self, player: Player, now: float) -> None:
-        """Play pressed: into the arena, alive at once."""
+        """Play pressed: into the arena, dead at a spawn point until the first click (the scores and keys show)."""
         if player.in_arena:
             return
         if len(self.arena()) >= ARENA_MAX:
@@ -328,6 +329,7 @@ class Game:
         else:
             self.spawn(player, now)
             player.send(self.round_message())
+        self.step_out(player, now, "start")
 
     def rename(self, player: Player, name: object) -> None:
         if player.account:
@@ -377,9 +379,17 @@ class Game:
                      **player.numbers()})
 
     def respawn(self, player: Player, now: float) -> None:
-        """Click while dead, after the 2 s."""
-        if player.in_arena and player.dead and self.phase == "play" and now - player.died_at >= RESPAWN_DELAY:
+        """Click while dead: 2 s after a death, at once after stepping out."""
+        if player.in_arena and player.dead and self.phase == "play" and now >= player.ready_at:
             self.spawn(player, now)
+
+    def step_out(self, player: Player, now: float, how: str) -> None:
+        """Dead without a death counted and with no credit to anyone: at the start, or Esc pressed (`out`).
+        The player stays where they were and may come back with a click at once."""
+        if not player.in_arena or player.dead:
+            return
+        player.dead, player.died_at, player.ready_at, player.hp = True, now, now, 0
+        player.send({"t": "die", "by": None, "how": how, "x": player.x, "y": player.y, "z": player.z})
 
     # --- moves -----------------------------------------------------------------------------------
 
@@ -643,7 +653,7 @@ class Game:
     def kill(self, victim: Player, by: Player | None, how: str, now: float) -> None:
         if victim.dead:
             return
-        victim.dead, victim.died_at, victim.hp = True, now, min(victim.hp, 0)
+        victim.dead, victim.died_at, victim.ready_at, victim.hp = True, now, now + RESPAWN_DELAY, min(victim.hp, 0)
         victim.deaths += 1
         if by is victim or (by is None and how == "void"):
             by = None  # killing yourself counts for nobody

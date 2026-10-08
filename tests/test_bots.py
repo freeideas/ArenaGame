@@ -26,7 +26,7 @@ def arena_with(monkeypatch, bots_wanted, people=0, seed=1):
     persons = [Person(game, chr(ord("a") + i)).p for i in range(people)]
     if persons:
         for p in persons:
-            game.enter(p, 0.0)
+            game.enter(p, 0.0); game.respawn(p, 0.0)
     else:
         game.start_round(0.0)
     for k in range(bots_wanted):

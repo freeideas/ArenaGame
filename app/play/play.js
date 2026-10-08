@@ -168,10 +168,16 @@ function mine(m) {
 function die(by, how) {
   alive = false;
   deadAt = clock();
+  hud.hideBody();
+  if (how === "start" || how === "out") {
+    // In the arena but not fighting: nobody scored, and a click goes in at once.
+    deadAt -= RESPAWN_WAIT;
+    deathText = how === "start" ? "Ready when you are" : "Stepped out";
+    return;
+  }
   if (how === "void") deathText = by && by !== me.id ? `${nameOf(by)} knocked you into the void` : "You fell into the void";
   else if (how === "self" || by === me.id || (!by && how === "launcher")) deathText = "Your own shell got you";
   else deathText = by ? `${nameOf(by)} got you with the ${HOW_TEXT[how] || "weapon"}` : "You died";
-  hud.hideBody();
   sound.play("die", { gain: 1.3 });
 }
 
@@ -412,6 +418,7 @@ function choose(n) {
 function join() {
   if (LOCAL) {
     localSpawn();
+    die(null, "start");
     return;
   }
   wantJoin = true;
@@ -425,8 +432,16 @@ function localSpawn() {
 
 function respawn() {
   if (alive || !joined || clock() - deadAt < RESPAWN_WAIT) return;
+  if (!locked()) canvas.requestPointerLock?.()?.catch?.(() => {});
   if (LOCAL) localSpawn();
   else send({ t: "respawn" });
+}
+
+/** Esc (the mouse let go) while fighting: dead for nobody's score until the next click. */
+function stepOut() {
+  if (!alive || !joined) return;
+  if (LOCAL) die(null, "out");
+  else send({ t: "out" });
 }
 
 hud.onPlay((name) => {
@@ -495,7 +510,7 @@ addEventListener("wheel", (e) => {
   const i = held.indexOf(w);
   choose(held[(i + (e.deltaY > 0 ? 1 : -1) + held.length) % held.length]);
 }, { passive: true });
-document.addEventListener("pointerlockchange", () => { if (!locked()) { mouseDown = false; pressPending = false; } });
+document.addEventListener("pointerlockchange", () => { if (!locked()) { mouseDown = false; pressPending = false; stepOut(); } });
 
 function input() {
   const k = (...codes) => codes.some((c) => keys.has(c));
@@ -576,10 +591,9 @@ function frame(t) {
     const players = LOCAL ? [{ id: me.id, name: me.name, bot: false, frags: 0, deaths: localDeaths, ping: 0 }]
       : latest?.players ?? round.scores;
     hud.roundLine(round.ends != null && sn != null ? round.ends - sn : null, round.phase, joined ? players : [], me.id);
-    hud.board(tabHeld || over, players, me.id, over ? winner : "",
+    hud.board(tabHeld || over || (joined && !alive), players, me.id, over ? winner : "",
       over ? "The next round starts soon." : `First to ${round.limit} frags.`);
     hud.death(joined && !alive, deathText, now - deadAt >= RESPAWN_WAIT);
-    hud.pause(joined && alive && !locked() && !over);
   }
 }
 requestAnimationFrame(frame);

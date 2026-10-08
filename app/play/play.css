@@ -24,14 +24,6 @@ body { user-select: none; -webkit-user-select: none; }
 
 #net { position: absolute; top: 2.8rem; left: 50%; transform: translateX(-50%); margin: 0; padding: .3rem .9rem; border-radius: 8px; background: #5a1020dd; }
 #toast { position: absolute; top: 5rem; left: 50%; transform: translateX(-50%); margin: 0; padding: .3rem .9rem; border-radius: 8px; background: #0b0e24dd; }
-#pause { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(28rem, 92vw); margin: 0; padding: .9rem 1.2rem; border: 1px solid var(--line); border-radius: 14px; background: #0b0e24dd; text-align: center; }
-#pause h2 { margin: 0 0 .3rem; font-size: 1.3rem; }
-#pause .note { margin: 0 0 .6rem; color: var(--dim); font-size: .9rem; }
-#pause .keys td { padding: .15rem .4rem; text-align: left; }
-#pause .keys td:first-child { text-align: right; white-space: nowrap; width: 55%; }
-#pause .keys td:last-child { white-space: nowrap; }
-#pause .keys kbd { display: inline-block; min-width: 1.3em; padding: 0 .3em; border: 1px solid var(--line); border-radius: 5px; background: #04050c; color: var(--fg); text-align: center; }
-#pause .go { margin: .7rem 0 0; font-weight: bold; }
 
 #vitals { position: absolute; left: 1rem; bottom: .8rem; display: flex; gap: 1.2rem; font-size: 1.1rem; }
 .vital b { font-size: 2rem; }
@@ -59,7 +51,12 @@ kbd { font: inherit; color: var(--dim); }
 .bot { color: var(--dim); font-size: .8rem; border: 1px solid var(--line); border-radius: 6px; padding: 0 .3rem; margin-left: .4rem; }
 
 /* You died. */
-#death { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; background: #3a000855; pointer-events: none; }
+#death { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; padding: 1rem; text-align: center; background: #3a000855; pointer-events: none; overflow: hidden; }
+#death #board { position: static; transform: none; width: min(34rem, 94vw); }
+#death .keys { width: auto; font-size: .9rem; padding: .3rem .8rem; border: 1px solid var(--line); border-radius: 12px; background: #0b0e24dd; }
+#death .keys td { padding: .05rem .4rem; text-align: left; white-space: nowrap; }
+#death .keys td:first-child { text-align: right; }
+#death .keys kbd { display: inline-block; min-width: 1.3em; padding: 0 .3em; border: 1px solid var(--line); border-radius: 5px; background: #04050c; color: var(--fg); text-align: center; }
 #deathtext { margin: 0; font-size: clamp(1.6rem, 5vw, 2.6rem); font-weight: 800; text-shadow: 0 2px 8px #000; }
 #respawn { margin: .3rem 0 0; color: var(--accent); font-weight: 700; }
 

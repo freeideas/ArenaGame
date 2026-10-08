@@ -52,6 +52,10 @@ def test_websocket_game(client):
         assert len(hello["guest"]) == 32 and hello["player"] is None and hello["name"]
         me = hello["id"]
         ws.send_json({"t": "join"})
+        until(ws, lambda m: m["t"] == "spawn")
+        start = until(ws, lambda m: m["t"] == "die")
+        assert start["how"] == "start" and start["by"] is None  # in the arena but dead until the first click
+        ws.send_json({"t": "respawn"})
         spawn = until(ws, lambda m: m["t"] == "spawn")
         assert spawn["hp"] == 100 and spawn["weapons"] == [1] and spawn["w"] == 1
         x, y, z = spawn["x"], spawn["y"], spawn["z"]

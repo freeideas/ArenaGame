@@ -24,7 +24,7 @@ def setup(n=2):
     game = Game(rng=random.Random(1))
     people = [Person(game, chr(ord("a") + i)) for i in range(n)]
     for person in people:
-        game.enter(person.p, 0.0)
+        game.enter(person.p, 0.0); game.respawn(person.p, 0.0)
     return game, [person.p for person in people], people
 
 
@@ -272,11 +272,11 @@ def run(game, start, seconds):
 def test_bot_count_follows_people():
     game = Game(rng=random.Random(2))
     a = Person(game, "a").p
-    game.enter(a, 0.0)
+    game.enter(a, 0.0); game.respawn(a, 0.0)
     t = run(game, 0.0, 0.5)
     assert len(game.bots()) == 2
     b = Person(game, "b").p
-    game.enter(b, t)
+    game.enter(b, t); game.respawn(b, t)
     t = run(game, t, 0.5)
     assert len(game.bots()) == 2, "living bots are never removed when people join"
     bot = game.bots()[0]
@@ -300,7 +300,7 @@ def test_bot_count_follows_people():
 def test_bots_go_when_the_last_person_leaves():
     game = Game(rng=random.Random(3))
     a = Person(game, "a").p
-    game.enter(a, 0.0)
+    game.enter(a, 0.0); game.respawn(a, 0.0)
     run(game, 0.0, 0.5)
     game.leave(a)
     assert game.players == {} and game.summary()["round"]["ends"] is None
@@ -317,11 +317,11 @@ def test_summary_shape():
 def test_dead_watchers_do_not_count_and_bots_die_to_one_hit():
     game = Game(rng=random.Random(4))
     a = Person(game, "a").p
-    game.enter(a, 0.0)
+    game.enter(a, 0.0); game.respawn(a, 0.0)
     t = run(game, 0.0, 0.5)
     assert len(game.bots()) == 2
     b = Person(game, "b").p
-    game.enter(b, t)
+    game.enter(b, t); game.respawn(b, t)
     game.kill(b, a, "blaster", t)  # b dies and never clicks to come back
     a.hp = 10**6  # a stands still through all this; the bots must not be able to kill them
     bot = game.bots()[0]
@@ -341,7 +341,7 @@ def test_dead_watchers_do_not_count_and_bots_die_to_one_hit():
 def test_same_guest_replaces_the_older_connection_and_silence_drops():
     game = Game(rng=random.Random(5))
     a = Person(game, "a")
-    game.enter(a.p, 0.0)
+    game.enter(a.p, 0.0); game.respawn(a.p, 0.0)
     b = Person(game, "b")
     again = []
     p2 = game.join("a2", "a" * 8, again.append, 1.0, name="A")
@@ -349,3 +349,20 @@ def test_same_guest_replaces_the_older_connection_and_silence_drops():
     assert b.p.id in game.players, "a different guest is untouched"
     game.tick(40.0, 1 / 30)  # nobody has been heard from since they joined
     assert b.last("bye") and b.p.id not in game.players
+
+
+def test_start_and_out_count_for_nobody():
+    """Entering puts you in dead with no death; Esc (`out`) does the same mid-fight; a click brings you back at once."""
+    game, (a, b), (pa, pb) = setup(2)
+    c = Person(game, "c")
+    game.enter(c.p, 0.0)
+    assert c.p.in_arena and c.p.dead and c.p.deaths == 0
+    assert c.last("die")["how"] == "start"
+    game.respawn(c.p, 0.0)
+    assert not c.p.dead
+    game.step_out(c.p, 0.0, "out")
+    assert c.p.dead and c.p.deaths == 0 and a.frags == 0 and b.frags == 0
+    assert c.last("die")["how"] == "out"
+    assert not any(e["e"] == "frag" for e in game.events)
+    game.respawn(c.p, 0.1)
+    assert not c.p.dead

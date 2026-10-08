@@ -16,22 +16,6 @@
   <ol id="feed" aria-live="polite"></ol>
   <p id="net" hidden></p>
   <p id="toast" hidden></p>
-  <div id="pause" hidden>
-    <h2>Paused for you</h2>
-    <p class="note">The mouse is free. Others keep playing, so stand somewhere safe.</p>
-    <table class="keys">
-      <tr><td><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></td><td>move</td></tr>
-      <tr><td>mouse or <kbd>&larr;</kbd> <kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&rarr;</kbd></td><td>look and aim</td></tr>
-      <tr><td>left button or <kbd>Enter</kbd></td><td>fire</td></tr>
-      <tr><td><kbd>Space</kbd></td><td>jump</td></tr>
-      <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> or wheel</td><td>change weapon</td></tr>
-      <tr><td><kbd>Tab</kbd> (hold)</td><td>scores</td></tr>
-      <tr><td><kbd>F</kbd></td><td>full screen on or off</td></tr>
-      <tr><td><kbd>M</kbd></td><td>sound on or off</td></tr>
-      <tr><td><kbd>Esc</kbd></td><td>this screen</td></tr>
-    </table>
-    <p class="go">Click to keep playing</p>
-  </div>
   <div id="vitals" hidden>
     <span class="vital"><span class="label">Health</span> <b id="hp">100</b></span>
     <span class="vital armor"><span class="label">Armor</span> <b id="armor">0</b></span>
@@ -57,7 +41,19 @@
 
 <div id="death" hidden>
   <p id="deathtext">You died</p>
-  <p id="respawn" hidden>Click to come back</p>
+  <div id="deathboard"></div>
+    <table class="keys">
+      <tr><td><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></td><td>move</td></tr>
+      <tr><td>mouse or <kbd>&larr;</kbd> <kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&rarr;</kbd></td><td>look and aim</td></tr>
+      <tr><td>left button or <kbd>Enter</kbd></td><td>fire</td></tr>
+      <tr><td><kbd>Space</kbd></td><td>jump</td></tr>
+      <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> or wheel</td><td>change weapon</td></tr>
+      <tr><td><kbd>Tab</kbd> (hold)</td><td>scores</td></tr>
+      <tr><td><kbd>F</kbd></td><td>full screen on or off</td></tr>
+      <tr><td><kbd>M</kbd></td><td>sound on or off</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>step out (this screen, nobody scores)</td></tr>
+    </table>
+  <p id="respawn" hidden>Click or Enter to go in</p>
 </div>
 
 <div id="cover">
@@ -69,7 +65,7 @@
       <p id="namenote" class="note"></p>
       <button id="play" type="submit">Play</button>
     </form>
-    <p class="note">W A S D move, the mouse or the arrow keys look, left button or Enter fires, Space jumps, 1 2 3 or the wheel change weapon, Tab shows the scores, F toggles full screen, M mutes, Esc frees the mouse and shows this list.</p>
+    <p class="note">W A S D move, the mouse or the arrow keys look, left button or Enter fires, Space jumps, 1 2 3 or the wheel change weapon, Tab shows the scores, F toggles full screen, M mutes, Esc steps out (dead, nobody scores). You start dead: click to go in.</p>
     <p class="note"><a href="../welcome/">Back to the front page</a></p>
   </div>
 </div>

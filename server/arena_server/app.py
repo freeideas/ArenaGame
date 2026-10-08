@@ -191,6 +191,8 @@ async def play(ws: WebSocket):
                 game.switch_weapon(player, message.get("w"), now)
             elif kind == "respawn":
                 game.respawn(player, now)
+            elif kind == "out":
+                game.step_out(player, now, "out")
             elif kind == "name":
                 game.rename(player, message.get("name"))
             elif kind == "pong":
