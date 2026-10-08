@@ -1,11 +1,13 @@
 // The 3D scene, drawn with three.js (../vendor/): the map's boxes and pads, the pickups, other
-// players, shells, shot lines, explosions and scorch marks, under a night sky, with a simple weapon
-// held in front of you. Surfaces use the CC0 photo textures in ../shared/textures/ (color, normal
+// players, shells, shot lines, explosions and scorch marks, under a night sky, with the weapon held
+// in front of you. The weapons are Kenney's CC0 Blaster Kit models in ../shared/models/, also shown
+// in other players' hands. Surfaces use the CC0 photo textures in ../shared/textures/ (color, normal
 // and roughness maps), lit by one shadow-casting sun. `?plain` in the page address turns shadows off
 // for weak machines. Coordinates are the game's own: metres, y up, yaw 0 looking toward -z and
 // increasing to the left, exactly as three.js turns a camera.
 
 import * as THREE from "../vendor/three.module.min.js";
+import { GLTFLoader } from "../vendor/GLTFLoader.js";
 
 const EYE = 1.6;
 const SHOT_LIFE = 0.4; // seconds a shot line takes to fade
@@ -39,6 +41,18 @@ const ITEM_LOOK = {
   charges: { shape: "box", color: 0xd36bff, size: 0.28 },
 };
 const WEAPON_COLOR = { 1: 0x7fd7ff, 2: 0xff8a3d, 3: 0xd36bff };
+// Which model each weapon uses, how long it is held in view and in others' hands (metres), and a
+// hue turn for its palette so it matches WEAPON_COLOR (the Blaster's red model becomes light blue).
+const GUNS = {
+  1: { file: "blaster-h", held: 0.25, worn: 0.5, hue: 190 },
+  2: { file: "blaster-k", held: 0.3, worn: 0.55, hue: 0 },
+  3: { file: "blaster-f", held: 0.52, worn: 0.85, hue: 0 },
+};
+const MODELS = "../shared/models/";
+const HELD_AT = [0.16, -0.15, -0.46]; // the held gun's middle, in camera space
+const KICK_TIME = 0.14; // seconds the recoil takes to settle
+const FLASH_TIME = 0.06;
+const SWITCH_TIME = 0.25;
 const PERSON_COLOR = 0x9ad1ff;
 const BOT_COLOR = 0xff9a5a;
 
@@ -204,6 +218,84 @@ function greyPaintTexture() {
 }
 
 /** A player: a painted-metal cylinder body, a sphere head and a visor showing which way they face. */
+/**
+ * One weapon model, loaded once: centred, scaled to 1 m long, pointing along -z, with the middle of
+ * its muzzle (the frontmost points) noted in `userData.muzzle` (the same 1 m scale).
+ * @type {Record<number, THREE.Group>}
+ */
+const gunModels = {};
+const gunsReady = new Promise((resolve) => {
+  const loader = new GLTFLoader();
+  let left = Object.keys(GUNS).length;
+  const done = () => { if (--left === 0) resolve(); };
+  for (const [w, spec] of Object.entries(GUNS)) {
+    loader.load(`${MODELS}${spec.file}.glb`, (gltf) => {
+      const model = gltf.scene;
+      model.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+      // The muzzle: the average height of the points within 3% of the front.
+      let sum = 0, n = 0;
+      const v = new THREE.Vector3();
+      model.traverse((o) => {
+        if (!o.isMesh) return;
+        const pos = o.geometry.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+          if (v.z < box.min.z + size.z * 0.03) { sum += v.y; n++; }
+        }
+        o.userData.shared = true; // geometry and material are shared by every copy: never dispose
+        if (spec.hue && o.material.map) o.material = hueTurned(o.material, spec.hue);
+      });
+      model.position.copy(mid).negate();
+      const g = new THREE.Group();
+      g.add(model);
+      g.scale.setScalar(1 / size.z);
+      g.userData.muzzle = new THREE.Vector3(0, ((n ? sum / n : mid.y) - mid.y) / size.z, -0.5);
+      gunModels[w] = g;
+      done();
+    }, undefined, (e) => { console.error(`Could not load ${spec.file}.glb:`, e); done(); });
+  }
+});
+
+/** A copy of a material whose palette image has its hue turned by `degrees`. */
+function hueTurned(material, degrees) {
+  const src = material.map, img = src.image;
+  const c = document.createElement("canvas");
+  c.width = img.width;
+  c.height = img.height;
+  const g = c.getContext("2d");
+  g.filter = `hue-rotate(${degrees}deg) saturate(0.8) brightness(1.15)`;
+  g.drawImage(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  for (const k of ["flipY", "wrapS", "wrapT", "magFilter", "minFilter", "colorSpace", "channel"]) t[k] = src[k];
+  const m = material.clone();
+  m.map = t;
+  return m;
+}
+
+/** A copy of weapon w's model `length` metres long, or null if it is not loaded. */
+function gunCopy(w, length) {
+  const base = gunModels[w];
+  if (!base) return null;
+  const g = base.clone();
+  g.scale.multiplyScalar(length);
+  g.userData.muzzle = base.userData.muzzle.clone().multiplyScalar(length);
+  return g;
+}
+
+/** The gun a figure holds: the model for weapon w, or a plain box until the models have loaded. */
+function figureGun(w) {
+  const gun = gunCopy(w, (GUNS[w] || GUNS[1]).worn);
+  if (gun) {
+    gun.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    return gun;
+  }
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.6), surfaceMaterial("steel", 0x333a4a, 0.6));
+  box.castShadow = true;
+  return box;
+}
+
 function makeFigure(bot) {
   const skin = surfaceMaterial("painted", bot ? BOT_COLOR : PERSON_COLOR, 1);
   skin.map = greyPaintTexture();
@@ -215,11 +307,12 @@ function makeFigure(bot) {
   const visor = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.12),
     new THREE.MeshStandardMaterial({ color: 0x10131f, metalness: 0.8, roughness: 0.15 }));
   visor.position.set(0, 1.6, -0.22);
-  const gun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.6), surfaceMaterial("steel", 0x333a4a, 0.6));
-  gun.position.set(0.32, 1.15, -0.3);
-  for (const m of [body, head, visor, gun]) m.castShadow = true;
-  figure.add(body, head, visor, gun);
-  return figure;
+  for (const m of [body, head, visor]) m.castShadow = true;
+  // The hand: a holder at the right side that tilts with the player's pitch; the gun goes in it.
+  const hand = new THREE.Group();
+  hand.position.set(0.34, 1.2, -0.25);
+  figure.add(body, head, visor, hand);
+  return { figure, hand };
 }
 
 /** Make the scene in `canvas` for the parsed map.json. */
@@ -324,11 +417,36 @@ export function createView(canvas, map) {
     return mesh;
   });
 
-  // A simple weapon held at the lower right of the view.
-  const held = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.045, 0.4), new THREE.MeshLambertMaterial({ color: WEAPON_COLOR[1] }));
-  held.position.set(0.2, -0.17, -0.62);
-  camera.add(held);
-  let heldKick = 0;
+  // The held weapon, at the lower right of the view. It has its own small scene and camera, drawn
+  // after the world with the depth cleared, so it never pokes into walls.
+  const heldScene = new THREE.Scene();
+  heldScene.environment = sky;
+  heldScene.environmentIntensity = 0.6;
+  heldScene.add(new THREE.HemisphereLight(0xc8d4ff, 0x40384f, 1.4));
+  const heldSun = new THREE.DirectionalLight(0xfff0dc, 2.2);
+  heldSun.position.set(0.6, 1, 0.4);
+  heldScene.add(heldSun);
+  const heldCamera = new THREE.PerspectiveCamera(60, 1, 0.01, 10);
+  const heldRig = new THREE.Group(); // moved for recoil and switching; the gun sits inside it
+  heldScene.add(heldRig);
+  /** @type {Record<number, THREE.Group>} */
+  const heldGuns = {};
+  let heldW = null, kickAt = -1, switchAt = -1;
+  // The muzzle flash: a soft additive star at the muzzle, and a light that brightens the gun.
+  const flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTexture(64, (g, n) => {
+    const grad = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+    grad.addColorStop(0, "rgba(255,255,255,1)");
+    grad.addColorStop(0.25, "rgba(255,240,200,0.9)");
+    grad.addColorStop(1, "rgba(255,200,120,0)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, n, n);
+  }), blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, toneMapped: false, transparent: true }));
+  flash.visible = false;
+  const flashLight = new THREE.PointLight(0xffd8a0, 0, 1.2, 2);
+  heldScene.add(flash, flashLight);
+  gunsReady.then(() => {
+    for (const w of Object.keys(GUNS)) heldGuns[w] = gunCopy(Number(w), GUNS[w].held);
+  });
 
   /** @type {Map<string, {figure: THREE.Group, label: THREE.Sprite | null, name: string, bot: boolean}>} */
   const figures = new Map();
@@ -355,8 +473,9 @@ export function createView(canvas, map) {
     const pr = renderer.getPixelRatio();
     if (canvas.width !== Math.floor(w * pr) || canvas.height !== Math.floor(h * pr)) {
       renderer.setSize(w, h, false);
-      camera.aspect = w / Math.max(1, h);
+      camera.aspect = heldCamera.aspect = w / Math.max(1, h);
       camera.updateProjectionMatrix();
+      heldCamera.updateProjectionMatrix();
     }
   }
 
@@ -413,6 +532,7 @@ export function createView(canvas, map) {
 
   function disposeTree(obj) {
     obj.traverse((o) => {
+      if (o.userData.shared) return;
       if (o.geometry && o.geometry !== boomGeometry) o.geometry.dispose();
       if (o.material) o.material.dispose();
     });
@@ -450,10 +570,20 @@ export function createView(canvas, map) {
       let f = figures.get(p.id);
       if (!f || f.bot !== !!p.bot) {
         if (f) { scene.remove(f.figure); disposeTree(f.figure); }
-        f = { figure: makeFigure(!!p.bot), label: null, name: "", bot: !!p.bot };
+        const made = makeFigure(!!p.bot);
+        f = { figure: made.figure, hand: made.hand, gun: null, gunW: null, gunReal: false, label: null, name: "", bot: !!p.bot };
         scene.add(f.figure);
         figures.set(p.id, f);
       }
+      const pw = GUNS[p.w] ? p.w : 1;
+      if (f.gunW !== pw || (!f.gunReal && gunModels[pw])) {
+        if (f.gun) { f.hand.remove(f.gun); disposeTree(f.gun); }
+        f.gun = figureGun(pw);
+        f.gunW = pw;
+        f.gunReal = !!gunModels[pw];
+        f.hand.add(f.gun);
+      }
+      f.hand.rotation.x = p.pitch || 0;
       if (f.name !== p.name) {
         if (f.label) { f.figure.remove(f.label); disposeTree(f.label); }
         f.label = makeLabel(p.bot ? `${p.name} (bot)` : p.name, p.bot ? "#ffc39a" : "#e6ecff");
@@ -506,10 +636,7 @@ export function createView(canvas, map) {
     const now = performance.now() / 1000;
     camera.position.set(f.eye.x, f.eye.y, f.eye.z);
     camera.rotation.set(f.eye.pitch, f.eye.yaw, 0);
-    held.visible = f.weapon != null;
-    if (f.weapon != null) held.material.color.setHex(WEAPON_COLOR[f.weapon] || 0xffffff);
-    heldKick = Math.max(0, heldKick - 0.01);
-    held.position.z = -0.62 + heldKick;
+    drawHeld(f.weapon, now);
     const beat = 0.5 + 0.5 * Math.sin(now * 4);
     const wave = (now * 0.8) % 1; // the ring runs outward and fades, once every 1.25 s
     for (const p of pads) {
@@ -526,8 +653,56 @@ export function createView(canvas, map) {
     updatePlayers(f.players);
     updateShells(f.shells);
     updateEffects(now);
+    renderer.autoClear = false;
+    renderer.clear();
     renderer.render(scene, camera);
+    if (heldRig.visible) {
+      renderer.clearDepth();
+      renderer.render(heldScene, heldCamera);
+    }
   }
 
-  return { draw, addShot, addBoom, kick: () => { heldKick = 0.06; }, EYE };
+  /** Place the held gun for weapon w (null hides it): recoil after a shot, and a lift after a switch. */
+  function drawHeld(w, now) {
+    const gun = w != null ? heldGuns[w] : null;
+    heldRig.visible = !!gun;
+    if (w !== heldW) {
+      for (const g of Object.values(heldGuns)) heldRig.remove(g);
+      if (gun) heldRig.add(gun);
+      if (heldW != null && w != null) switchAt = now;
+      heldW = gun ? w : null;
+    }
+    if (!gun) { flash.visible = false; flashLight.intensity = 0; return; }
+    const k = Math.max(0, 1 - (now - kickAt) / KICK_TIME) ** 2; // 1 just after a shot, easing to 0
+    const lift = Math.max(0, 1 - (now - switchAt) / SWITCH_TIME) ** 2;
+    heldRig.position.set(HELD_AT[0], HELD_AT[1] - 0.18 * lift, HELD_AT[2] + 0.06 * k);
+    heldRig.rotation.set(0.12 * k - 0.6 * lift, 0.04, 0); // turned a little toward the crosshair
+    const lit = now - kickAt < FLASH_TIME;
+    flash.visible = lit;
+    flashLight.intensity = lit ? 2.5 : 0;
+    if (lit) {
+      heldRig.updateMatrixWorld(true);
+      const at = gun.userData.muzzle.clone().add(new THREE.Vector3(0, 0, -0.03)).applyMatrix4(heldRig.matrixWorld);
+      flash.position.copy(at);
+      flash.material.color.setHex(WEAPON_COLOR[w] || 0xffffff).lerp(new THREE.Color(0xffffff), 0.5);
+      flash.material.rotation = Math.random() * Math.PI;
+      flash.scale.setScalar(w === 1 ? 0.09 : 0.14);
+      flashLight.position.copy(at);
+    }
+  }
+
+  /** Where the held gun's muzzle is in the world (for starting shot lines there). */
+  function muzzle() {
+    const gun = heldW != null ? heldGuns[heldW] : null;
+    const local = gun ? gun.userData.muzzle.clone().add(new THREE.Vector3(...HELD_AT)) : new THREE.Vector3(0.2, -0.17, -0.85);
+    camera.updateMatrixWorld();
+    // The held camera has a narrower view than the world camera; move the point so it lands on the
+    // same spot of the screen.
+    const scale = Math.tan((camera.fov * Math.PI) / 360) / Math.tan((heldCamera.fov * Math.PI) / 360);
+    local.x *= scale;
+    local.y *= scale;
+    return camera.localToWorld(local).toArray();
+  }
+
+  return { draw, addShot, addBoom, muzzle, kick: () => { kickAt = performance.now() / 1000; }, EYE };
 }

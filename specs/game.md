@@ -32,7 +32,7 @@ Browsers move their own player (`app/play/motion.js`), so controls feel instant;
 | Step up                     | up to 0.5 m without jumping |
 | Gravity                     | 20 m/s²   |
 
-Keys: W A S D move, the mouse or the arrow keys look (pointer lock for the mouse), left button or Enter fires, Space jumps, 1 2 3 or the wheel change weapon, Tab held shows the scores, F toggles full screen (pressing Play asks for it). A jump pressed while in the air is remembered for 0.15 s so landing and jumping again feels natural.
+Keys: W A S D move, the mouse or the arrow keys look (pointer lock for the mouse), left button or Enter fires, Space jumps, 1 2 3 or the wheel change weapon, Tab held shows the scores, F toggles full screen (pressing Play asks for it), M turns sound off or on (remembered in this browser). A jump pressed while in the air is remembered for 0.15 s so landing and jumping again feels natural.
 
 **Collision** is against the map's boxes only: a player is an axis-aligned box 0.8 x 1.8 x 0.8 for this purpose. Resolve each axis separately: move in x, push out; move in y, push out (and note whether standing on something); move in z, push out. Players pass through each other.
 
@@ -98,4 +98,4 @@ Guests play at once with a random name. Signing in with Endless Mind (QR code, `
 
 ## Not in the first version
 
-Models, sound, music, touch controls, teams, more maps, spectating, chat. These come after the fights feel right.
+Music, touch controls, teams, more maps, spectating, chat. These come after the fights feel right.

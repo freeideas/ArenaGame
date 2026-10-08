@@ -1,6 +1,7 @@
 // The play page's main module: loads the map, moves your own player with motion.js every frame,
 // reads the keys and mouse, fires (doing its own hit test for instant-hit weapons), talks to the
-// server through net.js, draws through view.js and fills the HUD through hud.js.
+// server through net.js, draws through view.js, plays sounds through sound.js and fills the HUD
+// through hud.js.
 // The rules are in ../../specs/game.md and the messages in ../../specs/protocol.md.
 // Opened as play/?local it runs with no server: your own player on the map, for trying movement.
 
@@ -8,6 +9,7 @@ import { step, newState, PLAYER_HALF, PLAYER_HEIGHT } from "./motion.js";
 import { createView } from "./view.js";
 import { connect } from "./net.js";
 import * as hud from "./hud.js";
+import * as sound from "./sound.js";
 
 const LOCAL = new URLSearchParams(location.search).has("local");
 const EYE = 1.6;
@@ -25,6 +27,10 @@ const WEAPON = {
   2: { every: 0.8, range: 200, spread: 0 },
   3: { every: 1.5, range: 200, spread: 0 },
 };
+const FIRE_SOUND = { 1: ["blaster", "blaster2"], 2: ["launcher"], 3: ["beam"] };
+const STEP_EVERY = 0.35; // seconds between footsteps while running
+const LAND_SPEED = 4;    // m/s downward at touchdown that makes a landing sound
+const pick = (list) => list[Math.floor(Math.random() * list.length)];
 const HOW_TEXT = { blaster: "Blaster", launcher: "Launcher", beam: "Beam" };
 
 const map = await (await fetch("../shared/map.json")).json();
@@ -166,6 +172,7 @@ function die(by, how) {
   else if (how === "self" || by === me.id || (!by && how === "launcher")) deathText = "Your own shell got you";
   else deathText = by ? `${nameOf(by)} got you with the ${HOW_TEXT[how] || "weapon"}` : "You died";
   hud.hideBody();
+  sound.play("die", { gain: 1.3 });
 }
 
 function takeState(m, now) {
@@ -176,22 +183,60 @@ function takeState(m, now) {
   offset = offset === null || sample < offset ? sample : offset + (sample - offset) * 0.002;
   const others = (m.players || []).filter((p) => p.id !== me.id);
   for (const p of m.players || []) names.set(p.id, p.name);
+  // Shells new since the last state: someone else's Launcher just fired (yours made its sound already).
+  const prevShells = new Set((states.at(-1)?.shells || []).map((s) => s.id));
+  for (const s of m.shells || []) {
+    if (states.length && !prevShells.has(s.id) && !shellSounds.has(s.id) && s.by !== me.id) sound.play("launcher", { at: [s.x, s.y, s.z], rate: sound.vary() });
+  }
   states.push({ t, players: others, shells: m.shells || [] });
   while (states.length > 30) states.shift();
   latest = m;
+  const where = (id) => {
+    const p = (m.players || []).find((q) => q.id === id);
+    return p ? [p.x, p.y + 1, p.z] : null;
+  };
   for (const e of m.events || []) {
     if (e.e === "frag") {
       hud.feed(e, nameOf, me.id);
+      if (e.of !== me.id) { const at = where(e.of); if (at) sound.play("die", { at, gain: 0.8 }); }
       if (e.by === me.id && e.of !== me.id) hud.toast(e.how === "void" ? `You knocked ${nameOf(e.of)} into the void.` : `You got ${nameOf(e.of)} with the ${HOW_TEXT[e.how] || e.how}.`);
     }
     else if (e.e === "shot") {
-      if (e.by !== me.id) view.addShot([e.ox, e.oy, e.oz], [e.hx, e.hy, e.hz], e.w);
-      else if (e.hit) hud.hitFlash();
-    } else if (e.e === "boom") view.addBoom(e.x, e.y, e.z);
+      if (e.by !== me.id) {
+        view.addShot([e.ox, e.oy, e.oz], [e.hx, e.hy, e.hz], e.w);
+        sound.play(pick(FIRE_SOUND[e.w] || FIRE_SOUND[1]), { at: [e.ox, e.oy, e.oz], rate: sound.vary(), gain: e.w === 3 ? 0.8 : 0.5 });
+      } else if (e.hit) hud.hitFlash();
+    } else if (e.e === "boom") boom(e.x, e.y, e.z);
+    else if (e.e === "pad" && e.by !== me.id) { // your own launches sound from your own movement
+      const at = where(e.by);
+      if (at) sound.play("pad", { at, gain: 0.7 });
+    } else if (e.e === "take") {
+      const item = map.items[e.item];
+      if (e.by === me.id) sound.play("pickup", { gain: 0.7 });
+      else if (item) sound.play("pickup", { at: item.at, gain: 0.5 });
+    }
   }
   // If the server shows us dead without a die message (for example after reconnecting), follow it.
   const self = (m.players || []).find((p) => p.id === me.id);
   if (self && self.dead && alive) die(null, "");
+}
+
+function boom(x, y, z) {
+  view.addBoom(x, y, z);
+  sound.play(pick(["boom", "boom2"]), { at: [x, y, z], rate: sound.vary(0.08) });
+}
+
+/** @type {Map<number, {move: Function, stop: Function}>} the hum of each shell in flight, by id */
+const shellSounds = new Map();
+function shellHum(shells) {
+  const here = new Set();
+  for (const s of shells) {
+    here.add(s.id);
+    let h = shellSounds.get(s.id);
+    if (!h) shellSounds.set(s.id, (h = sound.play("shell", { at: [s.x, s.y, s.z], gain: 0.35, loop: true, rate: sound.vary(0.05) })));
+    else h.move([s.x, s.y, s.z]);
+  }
+  for (const [id, h] of shellSounds) if (!here.has(id)) { h.stop(); shellSounds.delete(id); }
 }
 
 const serverNow = () => (offset === null ? null : clock() - offset);
@@ -328,20 +373,22 @@ function fire() {
   const o = [body.x, body.y + EYE, body.z];
   const d = scatter(aim(), spec.spread);
   view.kick();
+  sound.play(pick(FIRE_SOUND[w]), { rate: sound.vary(), gain: w === 1 ? 0.45 : 0.8 });
   let hit = null;
   if (w === 2) {
     if (LOCAL) { // no server to fly the shell: burst where it would land
       const t = rayBoxes(o, d);
-      if (t < spec.range) view.addBoom(o[0] + d[0] * t, o[1] + d[1] * t, o[2] + d[2] * t);
+      if (t < spec.range) boom(o[0] + d[0] * t, o[1] + d[1] * t, o[2] + d[2] * t);
     }
   } else {
     const result = traceShot(o, d, spec.range);
     hit = result.id;
-    // Start the drawn line at the tip of the weapon shown below and right of the eyes.
-    const f = aim(), right = [Math.cos(yaw), 0, -Math.sin(yaw)];
-    const tip = o.map((x, i) => x + f[i] * 0.85 + right[i] * 0.2 - (i === 1 ? 0.17 : 0));
-    view.addShot(tip, o.map((x, i) => x + d[i] * result.t), w);
-    if (hit) hud.hitFlash();
+    // Start the drawn line at the muzzle of the weapon shown below and right of the eyes.
+    view.addShot(view.muzzle(), o.map((x, i) => x + d[i] * result.t), w);
+    if (hit) {
+      hud.hitFlash();
+      sound.play("hit", { gain: 0.8 });
+    }
   }
   if (w !== 1) {
     ammo[w] = (ammo[w] ?? 1) - 1;
@@ -418,6 +465,7 @@ addEventListener("keydown", (e) => {
   }
   keys.add(e.code);
   if (e.code === "KeyF" && !e.repeat) fullscreen(!document.fullscreenElement);
+  if (e.code === "KeyM" && !e.repeat) hud.toast(sound.toggleMute() ? "Sound off (M turns it on)." : "Sound on.");
   const n = { Digit1: 1, Digit2: 2, Digit3: 3, Numpad1: 1, Numpad2: 2, Numpad3: 3 }[e.code];
   if (n) choose(n);
 });
@@ -463,6 +511,7 @@ function input() {
 
 let last = performance.now();
 let hudAt = 0;
+let stepClock = 0, stepN = 0;
 function frame(t) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.5, Math.max(0, (t - last) / 1000));
@@ -482,9 +531,23 @@ function frame(t) {
     const steps = Math.ceil(dt / MAX_STEP) || 1;
     const move = input();
     for (let i = 0; i < steps; i++) {
+      const before = body;
       body = step(body, move, dt / steps, map);
+      if (body.launched) sound.play("pad", { gain: 0.8 });
+      else if (body.ground && !before.ground && before.vy < -LAND_SPEED) {
+        sound.play("land", { gain: Math.min(1, 0.4 + (-before.vy - LAND_SPEED) / 12) });
+        stepClock = 0;
+      }
       if (body.fell && LOCAL) { localDeaths++; die(null, "void"); break; }
     }
+    // Footsteps while running on the ground, alternating the four step sounds.
+    if (body.ground && Math.hypot(body.vx, body.vz) > 3) {
+      stepClock += dt;
+      if (stepClock >= STEP_EVERY) {
+        stepClock -= STEP_EVERY;
+        sound.play(`step${stepN++ % 4}`, { gain: 0.35, rate: sound.vary(0.05) });
+      }
+    } else stepClock = STEP_EVERY * 0.7; // the first step comes soon after starting to run
     if ((mouseDown || keys.has("Enter")) && (w === 1 || pressPending) && fire()) pressPending = false;
   }
 
@@ -503,6 +566,8 @@ function frame(t) {
     const a = now * 0.05, x = Math.sin(a) * 48, z = Math.cos(a) * 48, y = 22;
     eye = { x, y, z, yaw: Math.atan2(x, z), pitch: -Math.atan2(y - 4, 48) };
   }
+  sound.listen(eye.x, eye.y, eye.z, eye.yaw, eye.pitch);
+  shellHum(shown.shells);
   view.draw({ eye, players: shown.players, shells: shown.shells, items: latest?.items ?? null, weapon: alive ? w : null });
 
   if (now - hudAt > 0.1) {
@@ -531,6 +596,7 @@ requestAnimationFrame(frame);
     look(newYaw, newPitch = 0) { yaw = newYaw; pitch = newPitch; },
     fire,
     receive,
+    get sounds() { return sound.loaded(); },
     trace: () => traceShot([body.x, body.y + EYE, body.z], aim(), 200),
   };
 }
