@@ -98,4 +98,4 @@ Guests play at once with a random name. Signing in with Endless Mind (QR code, `
 
 ## Not in the first version
 
-Textures, models, sound, music, touch controls, teams, more maps, spectating, chat. These come after the fights feel right.
+Models, sound, music, touch controls, teams, more maps, spectating, chat. These come after the fights feel right.

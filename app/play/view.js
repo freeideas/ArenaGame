@@ -1,7 +1,9 @@
 // The 3D scene, drawn with three.js (../vendor/): the map's boxes and pads, the pickups, other
-// players, shells, shot lines, explosions, a star field and a simple weapon held in front of you.
-// Flat-shaded and plain on purpose (specs/game.md). Coordinates are the game's own: metres,
-// y up, yaw 0 looking toward -z and increasing to the left, exactly as three.js turns a camera.
+// players, shells, shot lines, explosions and scorch marks, under a night sky, with a simple weapon
+// held in front of you. Surfaces use the CC0 photo textures in ../shared/textures/ (color, normal
+// and roughness maps), lit by one shadow-casting sun. `?plain` in the page address turns shadows off
+// for weak machines. Coordinates are the game's own: metres, y up, yaw 0 looking toward -z and
+// increasing to the left, exactly as three.js turns a camera.
 
 import * as THREE from "../vendor/three.module.min.js";
 
@@ -9,6 +11,21 @@ const EYE = 1.6;
 const SHOT_LIFE = 0.4; // seconds a shot line takes to fade
 const BOOM_LIFE = 0.3;
 const BOOM_SIZE = 3.5; // the Launcher's splash radius
+const SCORCH_LIFE = 20; // seconds a scorch mark takes to fade
+const SCORCH_MAX = 40;
+const TILE = 2; // metres one texture image covers
+const TEXTURES = "../shared/textures/";
+const PLAIN = new URLSearchParams(location.search).has("plain");
+// How shiny each surface is (metalness) and how much to darken it (shade, 1 unchanged).
+const SURFACE = {
+  plates: { metalness: 0.3 },
+  steel: { metalness: 0.35 },
+  grate: { metalness: 0.3 },
+  rust: { metalness: 0.1 },
+  concrete: { metalness: 0, shade: 0.55 }, // the photo is pale; darken it to sit with the metals
+  painted: { metalness: 0.2 },
+};
+const TINT = 0.3; // how much a box color tints its texture (0 none, 1 full)
 
 // How each pickup looks: a shape, a color and a size.
 const ITEM_LOOK = {
@@ -24,6 +41,114 @@ const ITEM_LOOK = {
 const WEAPON_COLOR = { 1: 0x7fd7ff, 2: 0xff8a3d, 3: 0xd36bff };
 const PERSON_COLOR = 0x9ad1ff;
 const BOT_COLOR = 0xff9a5a;
+
+const loader = new THREE.TextureLoader();
+/** @type {Map<string, {map: THREE.Texture, normalMap: THREE.Texture, roughnessMap: THREE.Texture}>} */
+const surfaceCache = new Map();
+let anisotropy = 1;
+
+/** The color, normal and roughness images of one surface in ../shared/textures/, loaded once. */
+function surfaceTextures(name) {
+  let s = surfaceCache.get(name);
+  if (!s) {
+    const load = (kind, srgb) => {
+      const t = loader.load(`${TEXTURES}${name}_${kind}.jpg`);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = anisotropy;
+      if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    };
+    s = { map: load("color", true), normalMap: load("normal", false), roughnessMap: load("rough", false) };
+    surfaceCache.set(name, s);
+  }
+  return s;
+}
+
+/** A lit, textured material for the named surface, tinted a little toward `tint`. */
+function surfaceMaterial(name, tint, amount = TINT) {
+  const known = SURFACE[name] ? name : "steel";
+  const color = new THREE.Color(0xffffff);
+  if (tint != null) color.lerp(new THREE.Color(tint), amount);
+  color.multiplyScalar(SURFACE[known].shade ?? 1);
+  return new THREE.MeshStandardMaterial({ ...surfaceTextures(known), color, metalness: SURFACE[known].metalness, roughness: 1 });
+}
+
+/** Scale a box's texture coordinates so one image covers TILE metres on every face. */
+function tileUVs(geometry, sx, sy, sz) {
+  const uv = geometry.attributes.uv;
+  const faces = [[sz, sy], [sz, sy], [sx, sz], [sx, sz], [sx, sy], [sx, sy]]; // +x -x +y -y +z -z
+  for (let i = 0; i < uv.count; i++) {
+    const [du, dv] = faces[Math.floor(i / 4)];
+    uv.setXY(i, uv.getX(i) * du / TILE, uv.getY(i) * dv / TILE);
+  }
+  uv.needsUpdate = true;
+}
+
+/** A canvas drawn by `paint(g, size)` as a texture. */
+function canvasTexture(size, paint) {
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  paint(c.getContext("2d"), size);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/** The pad emblem: a ring with two chevrons pointing up the image (the way the pad throws you). */
+function emblemTexture() {
+  return canvasTexture(256, (g, n) => {
+    g.strokeStyle = "#fff";
+    g.lineCap = g.lineJoin = "round";
+    g.shadowColor = "#fff";
+    g.shadowBlur = 10;
+    g.lineWidth = 12;
+    g.beginPath();
+    g.arc(n / 2, n / 2, n * 0.42, 0, Math.PI * 2);
+    g.stroke();
+    g.lineWidth = 18;
+    for (const y of [0.42, 0.62]) {
+      g.beginPath();
+      g.moveTo(n * 0.3, n * (y + 0.12));
+      g.lineTo(n * 0.5, n * (y - 0.08));
+      g.lineTo(n * 0.7, n * (y + 0.12));
+      g.stroke();
+    }
+  });
+}
+
+/** A plain ring, for the wave that runs outward from each pad. */
+function ringTexture() {
+  return canvasTexture(128, (g, n) => {
+    g.strokeStyle = "#fff";
+    g.shadowColor = "#fff";
+    g.shadowBlur = 6;
+    g.lineWidth = 6;
+    g.beginPath();
+    g.arc(n / 2, n / 2, n * 0.44, 0, Math.PI * 2);
+    g.stroke();
+  });
+}
+
+/** A soft, ragged dark blot for scorch marks. */
+function scorchTexture() {
+  return canvasTexture(128, (g, n) => {
+    const blot = (x, y, r, a) => {
+      const grad = g.createRadialGradient(x, y, 0, x, y, r);
+      grad.addColorStop(0, `rgba(8,6,5,${a})`);
+      grad.addColorStop(0.6, `rgba(12,9,7,${a * 0.6})`);
+      grad.addColorStop(1, "rgba(15,12,10,0)");
+      g.fillStyle = grad;
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.fill();
+    };
+    blot(n / 2, n / 2, n * 0.45, 0.8);
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + Math.random() * 0.5, d = n * (0.18 + Math.random() * 0.12);
+      blot(n / 2 + Math.cos(a) * d, n / 2 + Math.sin(a) * d, n * (0.08 + Math.random() * 0.1), 0.5);
+    }
+  });
+}
 
 function itemGeometry(look) {
   const s = look.size;
@@ -49,25 +174,50 @@ function makeLabel(text, color) {
   g.fillText(text, 128, 42);
   const texture = new THREE.CanvasTexture(c);
   texture.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, toneMapped: false, fog: false }));
   sprite.scale.set(1.8, 0.45, 1);
   sprite.position.y = 2.25;
   return sprite;
 }
 
-/** A player: a cylinder body, a sphere head and a visor showing which way they face. */
+/**
+ * The worn paint image turned grey (the photo is blue paint with rust), so a tint shows true:
+ * shared by every player, drawn once the photo has loaded.
+ */
+let greyPaint = null;
+function greyPaintTexture() {
+  if (greyPaint) return greyPaint;
+  const c = document.createElement("canvas");
+  c.width = c.height = 512;
+  greyPaint = new THREE.CanvasTexture(c);
+  greyPaint.colorSpace = THREE.SRGBColorSpace;
+  greyPaint.wrapS = greyPaint.wrapT = THREE.RepeatWrapping;
+  const img = new Image();
+  img.onload = () => {
+    const g = c.getContext("2d");
+    g.filter = "grayscale(1) brightness(3.2) contrast(0.45)";
+    g.drawImage(img, 0, 0, 512, 512);
+    greyPaint.needsUpdate = true;
+  };
+  img.src = `${TEXTURES}painted_color.jpg`;
+  return greyPaint;
+}
+
+/** A player: a painted-metal cylinder body, a sphere head and a visor showing which way they face. */
 function makeFigure(bot) {
-  const color = bot ? BOT_COLOR : PERSON_COLOR;
-  const skin = new THREE.MeshLambertMaterial({ color, flatShading: true });
+  const skin = surfaceMaterial("painted", bot ? BOT_COLOR : PERSON_COLOR, 1);
+  skin.map = greyPaintTexture();
   const figure = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.4, 1.3, 10), skin);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.4, 1.3, 16), skin);
   body.position.y = 0.65;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 10, 7), skin);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 10), skin);
   head.position.y = 1.55;
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.12), new THREE.MeshBasicMaterial({ color: 0x10131f }));
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.12),
+    new THREE.MeshStandardMaterial({ color: 0x10131f, metalness: 0.8, roughness: 0.15 }));
   visor.position.set(0, 1.6, -0.22);
-  const gun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.6), new THREE.MeshLambertMaterial({ color: 0x333a4a }));
+  const gun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.6), surfaceMaterial("steel", 0x333a4a, 0.6));
   gun.position.set(0.32, 1.15, -0.3);
+  for (const m of [body, head, visor, gun]) m.castShadow = true;
   figure.add(body, head, visor, gun);
   return figure;
 }
@@ -76,48 +226,89 @@ function makeFigure(bot) {
 export function createView(canvas, map) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  renderer.shadowMap.enabled = !PLAIN;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x04050c);
+  scene.fog = new THREE.FogExp2(0x05060d, 0.009);
   const camera = new THREE.PerspectiveCamera(80, 1, 0.05, 2000);
   camera.rotation.order = "YXZ";
   scene.add(camera);
 
-  scene.add(new THREE.AmbientLight(0x8090c0, 0.9));
-  scene.add(new THREE.HemisphereLight(0xb8c8ff, 0x4a3a66, 0.8));
-  const sun = new THREE.DirectionalLight(0xfff2dd, 2.2);
-  sun.position.set(30, 60, 20);
-  scene.add(sun);
+  // The night sky: one equirectangular photo as the background and as soft light and reflections.
+  const sky = loader.load(`${TEXTURES}sky.jpg`);
+  sky.mapping = THREE.EquirectangularReflectionMapping;
+  sky.colorSpace = THREE.SRGBColorSpace;
+  scene.background = sky;
+  scene.environment = sky;
+  scene.environmentIntensity = 1;
 
-  // Stars: points scattered on a far sphere.
-  {
-    const n = 1800;
-    const pos = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) {
-      const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u);
-      pos.set([r * Math.cos(a) * 900, u * 900, r * Math.sin(a) * 900], i * 3);
+  scene.add(new THREE.AmbientLight(0x8090c0, 0.4));
+  scene.add(new THREE.HemisphereLight(0xb8c8ff, 0x3a3050, 0.9));
+  const sun = new THREE.DirectionalLight(0xfff0dc, 3.2);
+  sun.position.set(30, 60, 20);
+  scene.add(sun, sun.target);
+  if (!PLAIN) {
+    // Fit the sun's shadow camera around the whole map (x and z -35..35, y -12..16).
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.bias = -0.0004;
+    sun.shadow.normalBias = 0.04;
+    const view = new THREE.Matrix4().lookAt(sun.position, sun.target.position, new THREE.Vector3(0, 1, 0));
+    view.setPosition(sun.position).invert();
+    const lo = new THREE.Vector3(Infinity, Infinity, Infinity), hi = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
+    for (const x of [-35, 35]) for (const y of [-12, 16]) for (const z of [-35, 35]) {
+      const p = new THREE.Vector3(x, y, z).applyMatrix4(view);
+      lo.min(p);
+      hi.max(p);
     }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    scene.add(new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0xdfe6ff, size: 1.6, sizeAttenuation: false, fog: false })));
+    const c = sun.shadow.camera;
+    c.left = lo.x; c.right = hi.x; c.bottom = lo.y; c.top = hi.y;
+    c.near = Math.max(0.1, -hi.z - 1); c.far = -lo.z + 1;
+    c.updateProjectionMatrix();
   }
 
-  // The map: every box and pad, flat colored, with faint edges so shapes read clearly.
+  // The map: every box textured by its "material" (top, bottom, four sides), with faint edges.
   const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 });
   function addBox(b, material) {
     const sx = b.max[0] - b.min[0], sy = b.max[1] - b.min[1], sz = b.max[2] - b.min[2];
     const geometry = new THREE.BoxGeometry(sx, sy, sz);
+    tileUVs(geometry, sx, sy, sz);
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2);
+    mesh.castShadow = mesh.receiveShadow = true;
     mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
     scene.add(mesh);
     return mesh;
   }
-  for (const b of map.boxes) addBox(b, new THREE.MeshLambertMaterial({ color: b.color || "#667", flatShading: true }));
-  const padMaterials = map.pads.map((p) => {
+  for (const b of map.boxes) {
+    const m = b.material || {};
+    const top = surfaceMaterial(m.top || "steel", b.color);
+    const side = surfaceMaterial(m.side || "steel", b.color);
+    const bottom = m.bottom ? surfaceMaterial(m.bottom, b.color) : side;
+    addBox(b, [side, side, top, bottom, side, side]); // +x -x +y -y +z -z
+  }
+
+  // Pads: glowing boxes with an emblem on top pointing the way they throw you, and a ring wave.
+  const emblem = emblemTexture(), ring = ringTexture();
+  const glow = (texture, color) => new THREE.MeshBasicMaterial({ map: texture, color, transparent: true,
+    blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false });
+  const pads = map.pads.map((p) => {
     const color = new THREE.Color(p.color || "#ffd23f");
-    const material = new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.5, flatShading: true });
+    const material = new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.35), emissive: color, emissiveIntensity: 0.3, roughness: 0.5, metalness: 0.2 });
     addBox(p, material);
-    return material;
+    const size = Math.min(p.max[0] - p.min[0], p.max[2] - p.min[2]);
+    const plane = new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2);
+    const mark = new THREE.Mesh(plane, glow(emblem, color));
+    mark.position.set((p.min[0] + p.max[0]) / 2, p.max[1] + 0.012, (p.min[2] + p.max[2]) / 2);
+    if (p.launch[0] || p.launch[2]) mark.rotation.y = Math.atan2(-p.launch[0], -p.launch[2]);
+    const wave = new THREE.Mesh(plane, glow(ring, color));
+    wave.position.copy(mark.position).y += 0.004;
+    scene.add(mark, wave);
+    return { material, mark, wave };
   });
 
   // Pickups: small spinning shapes, hidden while taken.
@@ -125,9 +316,10 @@ export function createView(canvas, map) {
     const look = ITEM_LOOK[item.type] || ITEM_LOOK.health;
     const color = new THREE.Color(look.color);
     const mesh = new THREE.Mesh(itemGeometry(look),
-      new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.35, flatShading: true }));
+      new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.45, roughness: 0.35, metalness: 0.3, flatShading: true }));
     mesh.position.set(item.at[0], item.at[1] + 0.8, item.at[2]);
     mesh.rotation.y = i;
+    mesh.castShadow = true;
     scene.add(mesh);
     return mesh;
   });
@@ -151,6 +343,12 @@ export function createView(canvas, map) {
   const effects = [];
   const boomGeometry = new THREE.SphereGeometry(1, 16, 10);
   const UP = new THREE.Vector3(0, 1, 0);
+
+  // Scorch marks: flat dark blots on the top surface under each explosion.
+  const scorchGeometry = new THREE.PlaneGeometry(2.6, 2.6).rotateX(-Math.PI / 2);
+  const scorchMap = scorchTexture();
+  /** @type {{mesh: THREE.Mesh, born: number}[]} */
+  const scorches = [];
 
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -179,12 +377,38 @@ export function createView(canvas, map) {
     effects.push({ obj, born: now, life: SHOT_LIFE, kind: "shot" });
   }
 
+  /** Leave a scorch mark on the highest top surface at most 3 m below (x, y, z), if there is one. */
+  function addScorch(x, y, z) {
+    let top = -Infinity;
+    for (const b of map.boxes) {
+      if (x < b.min[0] || x > b.max[0] || z < b.min[2] || z > b.max[2]) continue;
+      if (b.max[1] <= y + 0.2 && y - b.max[1] <= 3 && b.max[1] > top) top = b.max[1];
+    }
+    if (top === -Infinity) return;
+    const mesh = new THREE.Mesh(scorchGeometry, new THREE.MeshBasicMaterial({ map: scorchMap, transparent: true, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    mesh.position.set(x, top + 0.008, z);
+    mesh.rotation.y = Math.random() * Math.PI * 2;
+    mesh.scale.setScalar(0.8 + Math.random() * 0.4);
+    mesh.renderOrder = 1;
+    scene.add(mesh);
+    scorches.push({ mesh, born: performance.now() / 1000 });
+    while (scorches.length > SCORCH_MAX) dropScorch(0);
+  }
+
+  function dropScorch(i) {
+    const [s] = scorches.splice(i, 1);
+    scene.remove(s.mesh);
+    s.mesh.material.dispose();
+  }
+
   function addBoom(x, y, z) {
     const obj = new THREE.Mesh(boomGeometry, new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
     obj.position.set(x, y, z);
     obj.scale.setScalar(0.3);
     scene.add(obj);
     effects.push({ obj, born: performance.now() / 1000, life: BOOM_LIFE, kind: "boom" });
+    addScorch(x, y, z);
   }
 
   function disposeTree(obj) {
@@ -210,6 +434,11 @@ export function createView(canvas, map) {
       } else {
         e.obj.traverse((o) => { if (o.material) o.material.opacity = (o.userData.base ??= o.material.opacity) * (1 - k); });
       }
+    }
+    for (let i = scorches.length - 1; i >= 0; i--) {
+      const k = (now - scorches[i].born) / SCORCH_LIFE;
+      if (k >= 1) dropScorch(i);
+      else scorches[i].mesh.material.opacity = k < 0.5 ? 1 : 2 * (1 - k);
     }
   }
 
@@ -281,8 +510,14 @@ export function createView(canvas, map) {
     if (f.weapon != null) held.material.color.setHex(WEAPON_COLOR[f.weapon] || 0xffffff);
     heldKick = Math.max(0, heldKick - 0.01);
     held.position.z = -0.62 + heldKick;
-    const pulse = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(now * 4));
-    for (const m of padMaterials) m.emissiveIntensity = pulse;
+    const beat = 0.5 + 0.5 * Math.sin(now * 4);
+    const wave = (now * 0.8) % 1; // the ring runs outward and fades, once every 1.25 s
+    for (const p of pads) {
+      p.material.emissiveIntensity = 0.12 + 0.3 * beat;
+      p.mark.material.opacity = 0.55 + 0.45 * beat;
+      p.wave.scale.setScalar(0.35 + 0.75 * wave);
+      p.wave.material.opacity = 0.9 * (1 - wave);
+    }
     items.forEach((mesh, i) => {
       mesh.visible = !f.items || !!f.items[i];
       mesh.rotation.y = now * 1.6 + i;

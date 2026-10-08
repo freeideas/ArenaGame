@@ -8,7 +8,7 @@ The game itself. The rules are in [../../specs/game.md](../../specs/game.md) and
 | `play.css`   | Styles, on top of `../shared/base.css`                                                         |
 | `play.js`    | Loads the map, moves you every frame, keys and mouse, firing and hit tests, server messages     |
 | `motion.js`  | The movement rules; the same code as `server/arena_server/motion.py` (tests compare the two)    |
-| `view.js`    | The three.js scene: map, pads, pickups, other players, shells, shots, explosions, stars        |
+| `view.js`    | The three.js scene: textured map, pads, pickups, players, shots, scorch marks, sky, shadows    |
 | `net.js`     | The WebSocket at the site's `/ws`, hello with the stored guest ID, reconnecting with a wait     |
 | `hud.js`     | The HUD as plain DOM: health, armor, weapons, kill feed, clock, scores, overlays               |
 
@@ -18,6 +18,7 @@ How it works:
 - Other players and shells are drawn 100 ms in the past, sliding between the two `state` messages around that moment. The server's `now` in each state is turned into local time by the smallest gap seen.
 - Instant-hit weapons (Blaster, Beam) are tested here: a ray from your eyes against the upright cylinders of the players as they are drawn, nearest first, stopped by map boxes. The player hit goes in the `fire` message; the server checks it. Launcher shells are flown by the server.
 - The guest ID is kept in `localStorage` under `arena-guest`.
+- Surfaces use the textures in `../shared/textures/`, chosen per box by `material` in the map (see [../../specs/map.md](../../specs/map.md)). One sun casts shadows; add `?plain` to the page address (or `&plain` after `?local`) to turn shadows off on a weak machine.
 
 Trying it without a server: serve `app/` with any static file server (for example `deno run -A jsr:@std/http/file-server app --port 8781`) and open `http://localhost:8781/play/?local`. You get your own player on the map with all three weapons; pads and jumps work, falling off shows the death overlay, and shots are drawn but hit nobody.
 

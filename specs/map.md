@@ -20,7 +20,7 @@ The exact coordinates are in the JSON; the layout above is the intent. Change th
   "name": "Driftyard",
   "version": 1,
   "physics": { "gravity": 20, "run": 9, "ground_accel": 60, "friction": 5, "air_accel": 12, "air_cap": 9, "jump": 7.5, "step": 0.5, "jump_buffer": 0.15, "kill_y": -40 },
-  "boxes":   [ { "min": [x, y, z], "max": [x, y, z], "color": "#5a6", "name": "main deck" } ],
+  "boxes":   [ { "min": [x, y, z], "max": [x, y, z], "color": "#5a6", "material": { "top": "plates", "side": "steel" }, "name": "main deck" } ],
   "pads":    [ { "min": [x, y, z], "max": [x, y, z], "launch": [vx, vy, vz], "to": [x, y, z], "color": "#fd4" } ],
   "spawns":  [ { "at": [x, y, z], "yaw": 0 } ],
   "items":   [ { "type": "health", "at": [x, y, z] } ],
@@ -28,8 +28,8 @@ The exact coordinates are in the JSON; the layout above is the intent. Change th
 }
 ```
 
-- `boxes`: solid, drawn with the given flat color. Order does not matter.
-- `pads`: also solid (a thin box on a platform). `launch` is the velocity set when stepped on (once per touch; it fires again only after the player leaves the pad); `to` is the point it is meant to land near, used by the test and by bots. Pads are drawn in their bright `color` and pulse.
+- `boxes`: solid. Order does not matter. `material` names the texture of the top, the four sides and (optionally) the underside: `{"top": "plates", "side": "steel", "bottom": "steel"}`; `bottom` defaults to `side`. The names are the sets in `app/shared/textures/` (`plates`, `concrete`, `grate`, `steel`, `painted`, `rust`); one image covers 2 m. `color` is a mild tint over the texture.
+- `pads`: also solid (a thin box on a platform). `launch` is the velocity set when stepped on (once per touch; it fires again only after the player leaves the pad); `to` is the point it is meant to land near, used by the test and by bots. Pads are drawn in their bright `color` and pulse, with a glowing ring and chevrons on top pointing the way they throw you.
 - `physics.friction` is a rate: slowing on the ground is `friction` times `run` per second, so a runner stops in about 0.2 s. `jump_buffer` is how long a jump pressed in the air is remembered.
 - Waypoint edges are one-way; put both directions in when both work. The gap between the islands and the main deck is 13 m because a drop from 6 m up carries about 11 m.
 - `spawns`: feet position and facing.

@@ -3,15 +3,15 @@
   "version": 1,
   "physics": {"gravity": 20, "run": 9, "ground_accel": 60, "friction": 5, "air_accel": 12, "air_cap": 9, "jump": 7.5, "step": 0.5, "kill_y": -40, "jump_buffer": 0.15},
   "boxes": [
-    {"min": [-16, -1, -10], "max": [16, 0, 10], "color": "#5f6b78", "name": "main deck"},
-    {"min": [16, -4, -5], "max": [26, -3, 5], "color": "#6d6a58", "name": "east side deck"},
-    {"min": [-26, -4, -5], "max": [-16, -3, 5], "color": "#6d6a58", "name": "west side deck"},
-    {"min": [20, -4, 8], "max": [23, -3, 10], "color": "#7a6a55", "name": "east health ledge"},
-    {"min": [-8, 5, -31], "max": [8, 6, -23], "color": "#5d7466", "name": "north island"},
-    {"min": [-8, 5, 23], "max": [8, 6, 31], "color": "#76605f", "name": "south island"},
-    {"min": [26, -9, -2], "max": [30, 6, 2], "color": "#665d78", "name": "east pillar"},
-    {"min": [-30, -9, -2], "max": [-26, 6, 2], "color": "#665d78", "name": "west pillar"},
-    {"min": [-3, 13, -3], "max": [3, 14, 3], "color": "#7d7050", "name": "perch"}
+    {"min": [-16, -1, -10], "max": [16, 0, 10], "color": "#5f6b78", "material": {"top": "plates", "side": "steel"}, "name": "main deck"},
+    {"min": [16, -4, -5], "max": [26, -3, 5], "color": "#6d6a58", "material": {"top": "grate", "side": "steel"}, "name": "east side deck"},
+    {"min": [-26, -4, -5], "max": [-16, -3, 5], "color": "#6d6a58", "material": {"top": "grate", "side": "steel"}, "name": "west side deck"},
+    {"min": [20, -4, 8], "max": [23, -3, 10], "color": "#7a6a55", "material": {"top": "rust", "side": "rust"}, "name": "east health ledge"},
+    {"min": [-8, 5, -31], "max": [8, 6, -23], "color": "#5d7466", "material": {"top": "concrete", "side": "steel"}, "name": "north island"},
+    {"min": [-8, 5, 23], "max": [8, 6, 31], "color": "#76605f", "material": {"top": "concrete", "side": "steel"}, "name": "south island"},
+    {"min": [26, -9, -2], "max": [30, 6, 2], "color": "#665d78", "material": {"top": "concrete", "side": "concrete"}, "name": "east pillar"},
+    {"min": [-30, -9, -2], "max": [-26, 6, 2], "color": "#665d78", "material": {"top": "concrete", "side": "concrete"}, "name": "west pillar"},
+    {"min": [-3, 13, -3], "max": [3, 14, 3], "color": "#7d7050", "material": {"top": "grate", "side": "steel"}, "name": "perch"}
   ],
   "pads": [
     {"min": [-0.8, 0, -9.3], "max": [0.8, 0.3, -7.7], "launch": [0.0, 18.655, -12.496], "to": [0, 6, -27], "color": "#ffd23f"},
